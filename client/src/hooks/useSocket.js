@@ -1,48 +1,40 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { io } from 'socket.io-client'
 
 const SOCKET_URL = window.location.origin
 
 export function useSocket(onGameEvent, onConnectionChange) {
   const socketRef = useRef(null)
-  const onGameEventRef = useRef(onGameEvent)
-  const onConnectionChangeRef = useRef(onConnectionChange)
-
-  // Keep callback refs updated
-  useEffect(() => {
-    onGameEventRef.current = onGameEvent
-    onConnectionChangeRef.current = onConnectionChange
-  }, [onGameEvent, onConnectionChange])
+  const [socket, setSocket] = useState(null)
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, {
+    const s = io(SOCKET_URL, {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
     })
 
-    socketRef.current = socket
+    socketRef.current = s
+    setSocket(s)
 
-    socket.on('connect', () => {
-      console.log('Connected to server:', socket.id)
-      if (onConnectionChangeRef.current) onConnectionChangeRef.current('connected')
+    s.on('connect', () => {
+      console.log('Connected to server:', s.id)
+      onConnectionChange && onConnectionChange('connected')
     })
 
-    socket.on('disconnect', (reason) => {
+    s.on('disconnect', (reason) => {
       console.log('Disconnected:', reason)
-      if (onConnectionChangeRef.current) onConnectionChangeRef.current('disconnected')
+      onConnectionChange && onConnectionChange('disconnected')
     })
 
-    socket.on('connect_error', (error) => {
+    s.on('connect_error', (error) => {
       console.error('Connection error:', error.message)
-      if (onConnectionChangeRef.current) onConnectionChangeRef.current('disconnected')
+      onConnectionChange && onConnectionChange('disconnected')
     })
 
-    // Game events - server emits kebab-case, client sends snake_case
-    // Map both naming conventions
+    // Map server kebab-case events to client snake_case
     const eventMap = {
-      // Server → Client event names
       'game-state': 'game_state',
       'turn-start': 'turn_start',
       'phase-change': 'phase_change',
@@ -64,26 +56,18 @@ export function useSocket(onGameEvent, onConnectionChange) {
       'error': 'error',
     }
 
-    // Listen for all server-emitted events and normalize to snake_case
     Object.keys(eventMap).forEach(serverEvent => {
-      socket.on(serverEvent, (data) => {
+      s.on(serverEvent, (data) => {
         const clientEvent = eventMap[serverEvent]
         console.log(`[Socket] ${serverEvent} → ${clientEvent}`)
-        console.log(`[Socket] onGameEventRef.current =`, typeof onGameEventRef.current)
-        if (onGameEventRef.current) {
-          console.log(`[Socket] Calling onGameEventRef.current...`)
-          onGameEventRef.current(clientEvent, data)
-          console.log(`[Socket] Called onGameEventRef.current done`)
-        } else {
-          console.log(`[Socket] onGameEventRef.current is falsy — SKIPPED`)
-        }
+        onGameEvent && onGameEvent(clientEvent, data)
       })
     })
 
     return () => {
-      socket.disconnect()
+      s.disconnect()
     }
-  }, [])
+  }, []) // empty deps — onGameEvent is called directly, not via ref
 
   const emit = useCallback((event, data) => {
     if (socketRef.current && socketRef.current.connected) {
@@ -94,5 +78,5 @@ export function useSocket(onGameEvent, onConnectionChange) {
     }
   }, [])
 
-  return { socket: socketRef.current, emit }
+  return { socket, emit }
 }

@@ -55,9 +55,8 @@ export default function App() {
   const [state, dispatch] = useReducer(gameReducer, initialState)
 
   const handleGameEvent = useCallback((event, data) => {
-    try {
-      console.log('[HGE] event=', event, 'data=', typeof data === 'object' ? Object.keys(data) : data);
-      switch (event) {
+    console.log('[HGE] event=', event, 'data=', typeof data === 'object' ? Object.keys(data) : data);
+    switch (event) {
         case 'connect':
           console.log('[HGE] connect case');
           dispatch({ type: 'SET_CONNECTION', payload: 'connected' })
