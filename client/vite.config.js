@@ -11,5 +11,8 @@ export default defineConfig({
         ws: true
       }
     }
+  },
+  define: {
+    __BUILD_HASH__: JSON.stringify(Date.now().toString(36))
   }
 })

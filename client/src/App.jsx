@@ -1,4 +1,6 @@
 import { useState, useReducer, useCallback, useEffect } from 'react'
+// BUILD: abc123xyz
+console.log('[BUILD] abc123xyz');
 import { useSocket } from './hooks/useSocket'
 import Lobby from './components/Lobby'
 import GameBoard from './components/GameBoard'
