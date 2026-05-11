@@ -34,7 +34,7 @@ app.post('/api/create-room', (req, res) => {
       return res.status(400).json({ error: 'playerName required' });
     }
     const room = createRoom({ playerName, yugiMode: !!yugiMode });
-    res.json({ roomCode: room.code });
+    res.json({ roomCode: room.roomCode });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -95,12 +95,12 @@ io.on('connection', (socket) => {
         return;
       }
       const room = createRoom({ playerName, yugiMode: true, socketId: socket.id });
-      socket.join(room.code);
-      socket.roomCode = room.code;
+      socket.join(room.roomCode);
+      socket.roomCode = room.roomCode;
       socket.playerName = playerName;
       socket.isYugiMode = true;
-      socket.emit('room-created', { roomCode: room.code });
-      console.log(`[Room] Created AI room: ${room.code} by ${playerName}`);
+      socket.emit('room-created', { roomCode: room.roomCode });
+      console.log(`[Room] Created AI room: ${room.roomCode} by ${playerName}`);
 
       // Auto-start game for AI mode since player2 is pre-ready
       if (room.state.players.player1?.ready && room.state.players.player2?.ready) {
@@ -109,15 +109,15 @@ io.on('connection', (socket) => {
         gs.currentPlayer = 'player1';
         gs.phase = 'draw';
         room.state.gameState = gs;
-        io.to(room.code).emit('turn-start', { player: gs.currentPlayer, phase: gs.phase, turn: gs.turn });
-        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
-        console.log(`[Game] Started (AI mode): ${room.code}`);
+        io.to(room.roomCode).emit('turn-start', { player: gs.currentPlayer, phase: gs.phase, turn: gs.turn });
+        io.to(room.roomCode).emit('game-state', { state: serialize(gs, null) });
+        console.log(`[Game] Started (AI mode): ${room.roomCode}`);
         // Trigger AI turn after a short delay
         if (room.state.yugiMode) {
-          setAITimeout(room.code, () => {
+          setAITimeout(room.roomCode, () => {
             if (room.state && room.state.gameState && room.state.gameState.started) {
-              executeYugiTurn(room.state.gameState, io, room.code, () => {
-                io.to(room.code).emit('game-state', { state: serialize(room.state.gameState, null) });
+              executeYugiTurn(room.state.gameState, io, room.roomCode, () => {
+                io.to(room.roomCode).emit('game-state', { state: serialize(room.state.gameState, null) });
               });
             }
           }, 800);
@@ -136,12 +136,12 @@ io.on('connection', (socket) => {
         return;
       }
       const room = createRoom({ playerName, yugiMode: !!yugiMode, socketId: socket.id });
-      socket.join(room.code);
-      socket.roomCode = room.code;
+      socket.join(room.roomCode);
+      socket.roomCode = room.roomCode;
       socket.playerName = playerName;
       socket.isYugiMode = !!yugiMode;
-      socket.emit('room-created', { roomCode: room.code });
-      console.log(`[Room] Created: ${room.code} by ${playerName} (yugiMode=${!!yugiMode})`);
+      socket.emit('room-created', { roomCode: room.roomCode });
+      console.log(`[Room] Created: ${room.roomCode} by ${playerName} (yugiMode=${!!yugiMode})`);
     } catch (err) {
       socket.emit('error', { message: err.message });
     }
