@@ -17,5 +17,9 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "nixpacks": {
+    "build_cmd": "cd client && npm install && npx vite build",
+    "start_cmd": "node server/index.js"
   }
 }

@@ -4,7 +4,6 @@ serviceId = "1571de7d-2def-484a-ae1d-c16ca20e6d8e"
 
 [build]
 builder = "NIXPACKS"
-nixpacksConfigPath = "./nixpacks.conf"
 
 [deploy]
 startCommand = "npm start"
