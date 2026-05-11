@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Card animations */
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes cardAttack {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-30px) scale(1.1); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes cardDestroy {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(0); }
+}
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(245, 197, 66, 0.8); }
+}
+
+.card-enter {
+  animation: cardEnter 0.3s ease-out forwards;
+}
+
+.card-attack {
+  animation: cardAttack 0.4s ease-in-out;
+}
+
+.card-destroy {
+  animation: cardDestroy 0.3s ease-in forwards;
+}
+
+.card-selectable {
+  animation: pulse-border 1.5s infinite;
+  cursor: pointer;
+}
+
+.card-attack-target {
+  box-shadow: 0 0 20px 4px rgba(239, 68, 68, 0.8);
+}
+
+/* Card back pattern */
+.card-back {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d1b69 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-back::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 2px solid #4a2c9a;
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(74, 44, 154, 0.3) 10px,
+    rgba(74, 44, 154, 0.3) 20px
+  );
+}
+
+/* Scrollbar styling */
+.hand-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.hand-scroll::-webkit-scrollbar-track {
+  background: #1A1A2E;
+}
+
+.hand-scroll::-webkit-scrollbar-thumb {
+  background: #F5C542;
+  border-radius: 4px;
+}
