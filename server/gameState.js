@@ -51,6 +51,12 @@ function createGameState(player1Name, player2Name) {
   state.players.player1.deck = p1Deck;
   state.players.player2.deck = p2Deck;
 
+  // Draw opening hands (5 cards each)
+  for (let i = 0; i < 5; i++) {
+    drawCard(state, 'player1');
+    drawCard(state, 'player2');
+  }
+
   return state;
 }
 
