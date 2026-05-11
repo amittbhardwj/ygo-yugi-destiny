@@ -207,7 +207,7 @@ export default function App() {
       {screen === 'lobby' && (
         <Lobby
           onStartGame={handleStartGame}
-          connectionStatus={state.connectionStatus}
+          connectionStatus={connectionStatus}
         />
       )}
 
