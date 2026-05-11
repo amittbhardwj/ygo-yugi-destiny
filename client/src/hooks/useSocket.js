@@ -69,11 +69,13 @@ export function useSocket(onGameEvent, onConnectionChange) {
       socket.on(serverEvent, (data) => {
         const clientEvent = eventMap[serverEvent]
         console.log(`[Socket] ${serverEvent} → ${clientEvent}`)
-        console.log(`[Socket] calling onGameEvent('${clientEvent}', ...) with`, JSON.stringify(data).substring(0, 150))
+        console.log(`[Socket] onGameEventRef.current =`, typeof onGameEventRef.current)
         if (onGameEventRef.current) {
+          console.log(`[Socket] Calling onGameEventRef.current...`)
           onGameEventRef.current(clientEvent, data)
+          console.log(`[Socket] Called onGameEventRef.current done`)
         } else {
-          console.log(`[Socket] onGameEventRef.current is falsy — NOT calling handler`)
+          console.log(`[Socket] onGameEventRef.current is falsy — SKIPPED`)
         }
       })
     })
