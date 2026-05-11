@@ -76,7 +76,8 @@ export default function App() {
         break
       case 'turn_start':
       case 'your_turn':
-        dispatch({ type: 'SET_TURN', payload: true })
+        dispatch({ type: 'SET_TURN', payload: data.player === 'player1' })
+        dispatch({ type: 'SET_PHASE', payload: data.phase })
         break
       case 'phase_change':
         dispatch({ type: 'SET_PHASE', payload: data.phase })

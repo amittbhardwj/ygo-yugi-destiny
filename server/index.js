@@ -107,6 +107,7 @@ io.on('connection', (socket) => {
       if (room.state.players.player1?.ready && room.state.players.player2?.ready) {
         const gs = createGameState(room.state.players.player1.name, room.state.players.player2.name);
         gs.started = true;
+        gs.players.player1.id = socket.id; // Store socketId so playerKey detection works in all handlers
         gs.currentPlayer = 'player1';
         gs.phase = 'draw';
         room.state.gameState = gs;
