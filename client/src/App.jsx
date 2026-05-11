@@ -177,7 +177,7 @@ export default function App() {
   }, [])
 
   // Connection status
-  // (managed by socket hook via setConnectionStatus)
+  const [connectionStatus, setConnectionStatus] = useState('disconnected')
 
   // Show game over screen
   if (state.gameOver) {
