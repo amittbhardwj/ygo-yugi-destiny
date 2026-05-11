@@ -50,6 +50,7 @@ const initialState = {
 export default function App() {
   const [screen, setScreen] = useState('lobby') // 'lobby' or 'game'
   const [roomInfo, setRoomInfo] = useState(null)
+  const [connectionStatus, setConnectionStatus] = useState('disconnected')
 
   const [state, dispatch] = useReducer(gameReducer, initialState)
 
@@ -176,8 +177,7 @@ export default function App() {
     setRoomInfo(null)
   }, [])
 
-  // Connection status
-  const [connectionStatus, setConnectionStatus] = useState('disconnected')
+  // Connection status managed above
 
   // Show game over screen
   if (state.gameOver) {
