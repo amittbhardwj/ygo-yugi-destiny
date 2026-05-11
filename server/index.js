@@ -2,6 +2,10 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 import { createGameState, drawCard, advancePhase, serialize, canAttack, executeAttack, directAttack, summonMonster, setSpellTrap } from './gameState.js';
 import { resolveSpellEffect, resolveTrapEffect } from './rules.js';
 import { createRoom, joinRoom, getRoomBySocket, broadcastToRoom, broadcastToOpponent, getGameState, closeRoom } from './rooms.js';
@@ -20,7 +24,7 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static client build in production
-app.use(express.static('../client/dist'));
+app.use(express.static(join(__dirname, '../client/dist')));
 
 // REST endpoints for room management (for lobby)
 app.post('/api/create-room', (req, res) => {
@@ -59,7 +63,7 @@ app.get('/health', (req, res) => {
 
 // Serve index for all other routes (SPA)
 app.get('*', (req, res) => {
-  res.sendFile('../client/dist/index.html');
+  res.sendFile(join(__dirname, '../client/dist/index.html'));
 });
 
 // Track AI timeouts per room so we can cancel them on cleanup
