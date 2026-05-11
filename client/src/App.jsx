@@ -71,14 +71,25 @@ export default function App() {
         // Online room joined - wait for game-state to start
         break
       case 'game_state':
-        console.log('[App] game_state payload:', JSON.stringify(data.state).substring(0, 500));
-        dispatch({ type: 'SET_GAME_STATE', payload: data.state })
-        setScreen('game')
+        console.log('[App] game_state received');
+        try {
+          dispatch({ type: 'SET_GAME_STATE', payload: data.state });
+          console.log('[App] SET_GAME_STATE dispatched');
+        } catch(e) {
+          console.error('[App] SET_GAME_STATE error:', e.message);
+        }
+        setScreen('game');
+        console.log('[App] setScreen(game) called');
         break
       case 'turn_start':
-        console.log('[App] turn_start payload:', JSON.stringify(data));
-        dispatch({ type: 'SET_TURN', payload: data.player === 'player1' })
-        dispatch({ type: 'SET_PHASE', payload: data.phase })
+        console.log('[App] turn_start received, data:', JSON.stringify(data));
+        try {
+          dispatch({ type: 'SET_TURN', payload: data.player === 'player1' });
+          dispatch({ type: 'SET_PHASE', payload: data.phase });
+          console.log('[App] SET_TURN/SET_PHASE dispatched');
+        } catch(e) {
+          console.error('[App] turn_start error:', e.message);
+        }
         break
       case 'phase_change':
         dispatch({ type: 'SET_PHASE', payload: data.phase })

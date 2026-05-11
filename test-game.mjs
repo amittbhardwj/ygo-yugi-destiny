@@ -4,56 +4,48 @@ const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] }
 const page = await browser.newPage();
 
 const allLogs = [];
-page.on('pageerror', err => allLogs.push('[PAGE ERROR] ' + err.message));
-page.on('console', msg => allLogs.push('[' + msg.type() + '] ' + msg.text()));
-
-// Intercept socket.io packets using request interceptor
-let wsMessages = [];
-await page.route('**', async route => {
-  await route.continue();
+page.on('pageerror', err => {
+  allLogs.push('[PAGE ERROR] ' + err.message);
+  console.log('[PAGE ERROR]', err.message);
 });
-
-// Alternative: evaluate before page loads to intercept
-await page.addInitScript(() => {
-  // Override the socket.io parser to capture all events
-  window.__capturedEvents = [];
-  
-  // Intercept all postMessage to capture socket.io
-  const originalPostMessage = window.postMessage;
-  window.postMessage = function(data, origin) {
-    if (typeof data === 'string' && data.includes('engine')) {
-      window.__capturedEvents.push({type: 'postMessage', data});
-    }
-    return originalPostMessage.apply(this, arguments);
-  };
+page.on('console', msg => {
+  allLogs.push('[' + msg.type() + '] ' + msg.text());
+  console.log('[' + msg.type() + ']', msg.text());
 });
 
 await page.goto('https://ygo-yugi-destiny-production.up.railway.app/');
 await new Promise(r => setTimeout(r, 3000));
 
-// Now start the game
 await page.fill('input[placeholder="Enter your name..."]', 'Amitt');
 await new Promise(r => setTimeout(r, 1000));
 await page.locator('button:has-text("Play vs Yugi")').click();
 await new Promise(r => setTimeout(r, 500));
 await page.locator('button:has-text("Start Duel")').click();
 
-// Wait for game events
-await new Promise(r => setTimeout(r, 6000));
-
-// Print all logs
-console.log('\n=== ALL CONSOLE LOGS ===');
-allLogs.forEach(l => console.log(l));
-
-// Check captured events
-const captured = await page.evaluate(() => window.__capturedEvents);
-console.log('\n=== CAPTURED EVENTS ===');
-console.log(JSON.stringify(captured, null, 2));
+// Poll every second for up to 10 seconds
+console.log('\n--- POLLING FOR GAME STATE ---');
+for (let i = 0; i < 10; i++) {
+  await new Promise(r => setTimeout(r, 1000));
+  const bodyText = await page.locator('body').textContent();
+  const hasCards = bodyText.includes('Hand (5 cards)') || bodyText.includes('Hand (4 cards)') || bodyText.includes('Hand (3 cards)');
+  const zeroCards = bodyText.includes('Hand (0 cards)');
+  console.log(`[${i+1}s] Hand (0 cards): ${zeroCards}, Hand (5+ cards): ${hasCards}`);
+  if (hasCards) {
+    console.log('SUCCESS! Cards are showing!');
+    break;
+  }
+}
 
 const bodyText = await page.locator('body').textContent();
-console.log('\n--- BODY ---');
-console.log('Your Hand (0 cards):', bodyText.includes('Your Hand (0 cards)'));
-console.log('Your Hand (5 cards):', bodyText.includes('Your Hand (5 cards)'));
+console.log('\n--- FINAL BODY ---');
+const handIdx = bodyText.indexOf('Your Hand');
+if (handIdx !== -1) {
+  console.log(bodyText.substring(handIdx, handIdx + 100));
+}
+
+// Show App logs specifically  
+console.log('\n--- APP LOGS ---');
+allLogs.filter(l => l.includes('[App]')).forEach(l => console.log(l));
 
 await browser.close();
 process.exit(0);
