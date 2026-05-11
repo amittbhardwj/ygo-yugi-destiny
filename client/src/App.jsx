@@ -71,15 +71,11 @@ export default function App() {
         // Online room joined - wait for game-state to start
         break
       case 'game_state':
-        console.log('[App] game_state received');
-        try {
-          dispatch({ type: 'SET_GAME_STATE', payload: data.state });
-          console.log('[App] SET_GAME_STATE dispatched');
-        } catch(e) {
-          console.error('[App] SET_GAME_STATE error:', e.message);
-        }
+        console.log('[App] game_state case entered, data.state=', JSON.stringify(data.state).substring(0, 400));
         setScreen('game');
-        console.log('[App] setScreen(game) called');
+        console.log('[App] setScreen(game) called, calling dispatch');
+        dispatch({ type: 'SET_GAME_STATE', payload: data.state });
+        console.log('[App] dispatch called');
         break
       case 'turn_start':
         console.log('[App] turn_start received, data:', JSON.stringify(data));
