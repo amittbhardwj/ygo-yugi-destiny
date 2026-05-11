@@ -4,8 +4,7 @@ serviceId = "1571de7d-2def-484a-ae1d-c16ca20e6d8e"
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm ci && cd client && npm ci && npx vite build"
+buildCommand = "echo 'RAILWAY_FORCE_REBUILD_0110e054_$(date +%s)' && npm ci && cd client && npm ci && npx vite build && echo 'BUILD_COMPLETE_$(date +%s)'"
 
 [deploy]
 startCommand = "npm start"
-cacheKey = "ygo-v2"
