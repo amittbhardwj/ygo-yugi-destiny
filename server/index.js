@@ -102,7 +102,8 @@ io.on('connection', (socket) => {
       socket.emit('room-created', { roomCode: room.roomCode });
       console.log(`[Room] Created AI room: ${room.roomCode} by ${playerName}`);
 
-      // Auto-start game for AI mode since player2 is pre-ready
+      // Auto-start game for AI mode - player1 is ready when they click
+      room.state.players.player1.ready = true;
       if (room.state.players.player1?.ready && room.state.players.player2?.ready) {
         const gs = createGameState(room.state.players.player1.name, room.state.players.player2.name);
         gs.started = true;
