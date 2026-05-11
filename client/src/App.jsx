@@ -71,12 +71,12 @@ export default function App() {
         // Online room joined - wait for game-state to start
         break
       case 'game_state':
-        console.log('[App] game_state received, data.state:', JSON.stringify(data.state).substring(0, 300));
+        console.log('[App] game_state payload:', JSON.stringify(data.state).substring(0, 500));
         dispatch({ type: 'SET_GAME_STATE', payload: data.state })
         setScreen('game')
         break
       case 'turn_start':
-      case 'your_turn':
+        console.log('[App] turn_start payload:', JSON.stringify(data));
         dispatch({ type: 'SET_TURN', payload: data.player === 'player1' })
         dispatch({ type: 'SET_PHASE', payload: data.phase })
         break
