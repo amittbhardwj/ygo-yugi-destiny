@@ -66,8 +66,13 @@ export default function App() {
         dispatch({ type: 'SET_CONNECTION', payload: 'disconnected' })
         break
 
-      case 'game_start':
-      case 'game_state':
+      case 'joined':
+        // Online room joined - wait for game-state to start
+        break
+      case 'room-created':
+        // AI room created - will get game-state next
+        break
+      case 'game-state':
         dispatch({ type: 'SET_GAME_STATE', payload: data })
         setScreen('game')
         break
@@ -76,6 +81,7 @@ export default function App() {
         dispatch({ type: 'SET_PHASE', payload: data.phase })
         break
 
+      case 'turn-start':
       case 'turn_start':
       case 'your_turn':
         dispatch({ type: 'SET_TURN', payload: true })
@@ -122,12 +128,12 @@ export default function App() {
     setRoomInfo(config)
 
     if (config.mode === 'yugi') {
-      emit('play_vs_ai', { playerName: config.playerName })
+      emit('play-vs-ai', { playerName: config.playerName })
     } else if (config.mode === 'online') {
       if (config.action === 'create') {
-        emit('create_room', { playerName: config.playerName, roomCode: config.roomCode })
+        emit('create-room', { playerName: config.playerName, roomCode: config.roomCode })
       } else {
-        emit('join_room', { playerName: config.playerName, roomCode: config.roomCode })
+        emit('join-room', { playerName: config.playerName, roomCode: config.roomCode })
       }
     }
   }, [emit])

@@ -88,6 +88,25 @@ io.on('connection', (socket) => {
   console.log(`[Socket] Connected: ${socket.id}`);
 
   // --- Create Room ---
+  socket.on('play-vs-ai', ({ playerName }) => {
+    try {
+      if (!playerName) {
+        socket.emit('error', { message: 'playerName required' });
+        return;
+      }
+      const room = createRoom({ playerName, yugiMode: true, socketId: socket.id });
+      socket.join(room.code);
+      socket.roomCode = room.code;
+      socket.playerName = playerName;
+      socket.isYugiMode = true;
+      socket.emit('room-created', { roomCode: room.code });
+      console.log(`[Room] Created AI room: ${room.code} by ${playerName}`);
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
+  // --- Create Room (online) ---
   socket.on('create-room', ({ playerName, yugiMode }) => {
     try {
       if (!playerName) {
