@@ -68,18 +68,12 @@ export function useSocket(onGameEvent, onConnectionChange) {
     Object.keys(eventMap).forEach(serverEvent => {
       socket.on(serverEvent, (data) => {
         const clientEvent = eventMap[serverEvent]
-        console.log(`[Socket] Received: ${serverEvent} → ${clientEvent}`, data ? '' : '(no data)')
-        console.log(`[Socket] calling onGameEventRef.current('${clientEvent}', ...) data=`, JSON.stringify(data).substring(0, 200))
+        console.log(`[Socket] ${serverEvent} → ${clientEvent}`)
+        console.log(`[Socket] calling onGameEvent('${clientEvent}', ...) with`, JSON.stringify(data).substring(0, 150))
         if (onGameEventRef.current) {
-          console.log(`[Socket] onGameEventRef.current EXISTS, calling it`)
-          try {
-            onGameEventRef.current(clientEvent, data)
-            console.log(`[Socket] onGameEventRef.current completed`)
-          } catch(e) {
-            console.error(`[Socket] onGameEventRef.current ERROR:`, e.message)
-          }
+          onGameEventRef.current(clientEvent, data)
         } else {
-          console.log(`[Socket] onGameEventRef.current is NULL/FALSE`)
+          console.log(`[Socket] onGameEventRef.current is falsy — NOT calling handler`)
         }
       })
     })

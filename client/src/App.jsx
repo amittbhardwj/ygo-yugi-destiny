@@ -55,27 +55,28 @@ export default function App() {
   const [state, dispatch] = useReducer(gameReducer, initialState)
 
   const handleGameEvent = useCallback((event, data) => {
-    console.log('Game event:', event, data)
+    console.log('[handleGameEvent] called with event=', event, 'data=', JSON.stringify(data).substring(0, 100))
+    console.log('[handleGameEvent] switch matching...')
 
     switch (event) {
       case 'connect':
+        console.log('[handleGameEvent] case: connect')
         dispatch({ type: 'SET_CONNECTION', payload: 'connected' })
         break
       case 'disconnect':
+        console.log('[handleGameEvent] case: disconnect')
         dispatch({ type: 'SET_CONNECTION', payload: 'disconnected' })
         break
       case 'room_created':
-        // AI room created - will get game-state next
+        console.log('[handleGameEvent] case: room_created')
         break
       case 'joined':
-        // Online room joined - wait for game-state to start
+        console.log('[handleGameEvent] case: joined')
         break
       case 'game_state':
-        console.log('[App] game_state case entered, data.state=', JSON.stringify(data.state).substring(0, 400));
-        setScreen('game');
-        console.log('[App] setScreen(game) called, calling dispatch');
-        dispatch({ type: 'SET_GAME_STATE', payload: data.state });
-        console.log('[App] dispatch called');
+        console.log('[handleGameEvent] case: game_state — data.state has', data?.state?.player?.hand?.length, 'cards in player.hand')
+        setScreen('game')
+        dispatch({ type: 'SET_GAME_STATE', payload: data.state })
         break
       case 'turn_start':
         console.log('[App] turn_start received, data:', JSON.stringify(data));
