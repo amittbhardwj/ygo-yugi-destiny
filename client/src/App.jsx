@@ -55,39 +55,35 @@ export default function App() {
   const [state, dispatch] = useReducer(gameReducer, initialState)
 
   const handleGameEvent = useCallback((event, data) => {
-    console.log('[handleGameEvent] called with event=', event, 'data=', JSON.stringify(data).substring(0, 100))
-    console.log('[handleGameEvent] switch matching...')
-
-    switch (event) {
-      case 'connect':
-        console.log('[handleGameEvent] case: connect')
-        dispatch({ type: 'SET_CONNECTION', payload: 'connected' })
-        break
-      case 'disconnect':
-        console.log('[handleGameEvent] case: disconnect')
-        dispatch({ type: 'SET_CONNECTION', payload: 'disconnected' })
-        break
-      case 'room_created':
-        console.log('[handleGameEvent] case: room_created')
-        break
-      case 'joined':
-        console.log('[handleGameEvent] case: joined')
-        break
-      case 'game_state':
-        console.log('[handleGameEvent] case: game_state — data.state has', data?.state?.player?.hand?.length, 'cards in player.hand')
-        setScreen('game')
-        dispatch({ type: 'SET_GAME_STATE', payload: data.state })
-        break
-      case 'turn_start':
-        console.log('[App] turn_start received, data:', JSON.stringify(data));
-        try {
-          dispatch({ type: 'SET_TURN', payload: data.player === 'player1' });
-          dispatch({ type: 'SET_PHASE', payload: data.phase });
-          console.log('[App] SET_TURN/SET_PHASE dispatched');
-        } catch(e) {
-          console.error('[App] turn_start error:', e.message);
-        }
-        break
+    try {
+      console.log('[HGE] event=', event, 'data=', typeof data === 'object' ? Object.keys(data) : data);
+      switch (event) {
+        case 'connect':
+          console.log('[HGE] connect case');
+          dispatch({ type: 'SET_CONNECTION', payload: 'connected' })
+          break
+        case 'disconnect':
+          console.log('[HGE] disconnect case');
+          dispatch({ type: 'SET_CONNECTION', payload: 'disconnected' })
+          break
+        case 'room_created':
+          console.log('[HGE] room_created case');
+          break
+        case 'joined':
+          console.log('[HGE] joined case');
+          break
+        case 'game_state':
+          console.log('[HGE] game_state case, data.state=', data?.state ? Object.keys(data.state) : 'MISSING');
+          console.log('[HGE] player.hand=', data?.state?.player?.hand?.length);
+          setScreen('game')
+          dispatch({ type: 'SET_GAME_STATE', payload: data.state })
+          console.log('[HGE] SET_GAME_STATE dispatched');
+          break
+        case 'turn_start':
+          console.log('[HGE] turn_start case, data=', JSON.stringify(data));
+          dispatch({ type: 'SET_TURN', payload: data.player === 'player1' })
+          dispatch({ type: 'SET_PHASE', payload: data.phase })
+          break
       case 'phase_change':
         dispatch({ type: 'SET_PHASE', payload: data.phase })
         break
