@@ -2,7 +2,8 @@
   "project": "2e8ad56c-3e36-42a5-9905-873d301868d6",
   "service": "1571de7d-2def-484a-ae1d-c16ca20e6d8e",
   "build": {
-    "command": "rm -rf client/node_modules client/dist && npm install && cd client && npm install && npx vite build"
+    "builder": "NIXPACKS",
+    "buildCommand": "npm install --include=dev && cd client && npm install --include=dev && npx vite build"
   },
   "start": {
     "command": "npm start"
