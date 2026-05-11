@@ -247,12 +247,12 @@ function advancePhase(state) {
 
 function serialize(state, forSocketId) {
   // Determine which player corresponds to the socket
-  const isP1 = state.players.player1?.id === forSocketId;
-  const isP2 = state.players.player2?.id === forSocketId;
+  const isP1 = forSocketId === null || forSocketId === state.players.player1?.id;
 
   const serializePlayer = (key, isOwner) => {
     const player = state.players[key];
-    const opponent = key === 'player1' ? 'player2' : 'player1';
+    const opponentKey = key === 'player1' ? 'player2' : 'player1';
+    const opponent = state.players[opponentKey];
 
     return {
       name: player.name,
@@ -264,7 +264,7 @@ function serialize(state, forSocketId) {
         monsters: player.field.monsters.map(m => ({
           ...m,
           // Hide face-down cards that belong to opponent
-          faceDown: isOwner ? m.faceDown : (state.players[opponent]?.id === forSocketId ? m.faceDown : m.faceDown),
+          faceDown: isOwner ? m.faceDown : (opponent?.id === forSocketId ? m.faceDown : m.faceDown),
         })),
         spells: player.field.spells.map(s => ({
           ...s,
@@ -275,22 +275,21 @@ function serialize(state, forSocketId) {
     };
   };
 
-  // Player1 sees their own hand + opponent field (with privacy)
-  // Player2 sees their own hand + opponent field (with privacy)
-  let player1View, player2View;
-
-  if (forSocketId === null || forSocketId === state.players.player1?.id) {
-    player1View = serializePlayer('player1', true);
-    player2View = serializePlayer('player2', false);
+  let playerView, opponentView;
+  if (isP1) {
+    playerView = serializePlayer('player1', true);
+    opponentView = serializePlayer('player2', false);
   } else {
-    player1View = serializePlayer('player1', false);
-    player2View = serializePlayer('player2', true);
+    playerView = serializePlayer('player2', true);
+    opponentView = serializePlayer('player1', false);
   }
 
   return {
+    player: playerView,
+    opponent: opponentView,
     players: {
-      player1: player1View,
-      player2: player2View,
+      player1: playerView,
+      player2: opponentView,
     },
     turn: state.turn,
     currentPlayer: state.currentPlayer,
