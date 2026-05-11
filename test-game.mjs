@@ -4,6 +4,36 @@ const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] }
 const page = await browser.newPage();
 
 page.on('pageerror', err => console.log('[PAGE ERROR]', err.message));
+page.on('console', msg => {
+  const text = msg.text();
+  // Only show socket/turn/game related logs
+  if (text.includes('[log]') || text.includes('[error]')) {
+    console.log(text);
+  }
+});
+
+// Intercept WebSocket messages to see what's actually coming from server
+await page.addInitScript(() => {
+  const originalSend = WebSocket.prototype.send;
+  WebSocket.prototype.send = function(data) {
+    console.log('[WS SEND]', data);
+    return originalSend.call(this, data);
+  };
+  
+  // Capture incoming messages
+  const originalOnMessage = WebSocket.prototype.onmessage;
+  WebSocket.prototype.onmessage = function(event) {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.args?.[0]?.state) {
+        console.log('[WS RECV game-state state]:', JSON.stringify(data.args[0].state).substring(0, 500));
+      } else if (data.args?.[0]?.player) {
+        console.log('[WS RECV turn-start]:', JSON.stringify(data.args[0]));
+      }
+    } catch(e) {}
+    return originalOnMessage.call(this, event);
+  };
+});
 
 await page.goto('https://ygo-yugi-destiny-production.up.railway.app/');
 await new Promise(r => setTimeout(r, 2000));
@@ -15,28 +45,15 @@ await page.locator('button:has-text("Play vs Yugi")').click();
 await new Promise(r => setTimeout(r, 500));
 
 await page.locator('button:has-text("Start Duel")').click();
-await new Promise(r => setTimeout(r, 4000));
 
-// Get the full HTML and look at the structure
-const html = await page.content();
+await new Promise(r => setTimeout(r, 6000));
 
-// Check for any card elements in hand
-const handSections = html.match(/Your Hand[^<]*<[^>]*>[^<]*(<div[^>]*class="[^"]*card[^>]*"[^>]*>.*?<\/div>)/gs);
-console.log('Hand card elements found:', handSections?.length || 0);
-
-// Check what the actual DOM structure looks like around hand
-const handMatch = html.match(/Your Hand.{0,300}/s);
-console.log('\n--- HAND SECTION HTML ---');
-console.log(handMatch ? handMatch[0].substring(0, 500) : 'not found');
-
-// Check if there are actual card divs
-const cardDivs = html.match(/<div[^>]*class="[^"]*(?:card|monster|spell|trap)[^"]*"[^>]*>/gi);
-console.log('\nCard divs found:', cardDivs?.length || 0);
-if (cardDivs?.length) console.log(cardDivs.slice(0, 5).join('\n'));
-
-// Check for "hidden" card indicators
-const hiddenCards = (html.match(/hidden|face-down|card-back|back/gim) || []).length;
-console.log('\nHidden/face-down references:', hiddenCards);
+const bodyText = await page.locator('body').textContent();
+console.log('\n--- FINAL STATE ---');
+console.log('Your Hand (0 cards):', bodyText.includes('Your Hand (0 cards)'));
+console.log('Your Hand (5 cards):', bodyText.includes('Your Hand (5 cards)'));
+console.log("Opponent's Hand (0 cards):", bodyText.includes("Opponent's Hand (0 cards)"));
+console.log("Opponent's Hand (5 cards):", bodyText.includes("Opponent's Hand (5 cards)"));
 
 await browser.close();
 process.exit(0);
