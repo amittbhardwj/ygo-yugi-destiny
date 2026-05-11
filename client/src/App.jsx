@@ -27,8 +27,8 @@ function gameReducer(state, action) {
     case 'GAME_OVER':
       return { ...state, gameOver: true, winner: action.payload }
 
-    case 'RESET':
-      return initialState
+    case 'SET_CONNECTION':
+      return { ...state, connectionStatus: action.payload }
 
     default:
       return state
@@ -108,7 +108,7 @@ export default function App() {
     }
   }, [])
 
-  const { emit } = useSocket(handleGameEvent)
+  const { emit } = useSocket(handleGameEvent, setConnectionStatus)
 
   // Update connection status based on socket state
   useEffect(() => {
@@ -177,7 +177,7 @@ export default function App() {
   }, [])
 
   // Connection status
-  const [connectionStatus, setConnectionStatus] = useState('disconnected')
+  // (managed by socket hook via setConnectionStatus)
 
   // Show game over screen
   if (state.gameOver) {
@@ -207,7 +207,7 @@ export default function App() {
       {screen === 'lobby' && (
         <Lobby
           onStartGame={handleStartGame}
-          connectionStatus={connectionStatus}
+          connectionStatus={state.connectionStatus}
         />
       )}
 

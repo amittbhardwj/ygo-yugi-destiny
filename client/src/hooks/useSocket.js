@@ -3,14 +3,16 @@ import { io } from 'socket.io-client'
 
 const SOCKET_URL = window.location.origin
 
-export function useSocket(onGameEvent) {
+export function useSocket(onGameEvent, onConnectionChange) {
   const socketRef = useRef(null)
   const onGameEventRef = useRef(onGameEvent)
+  const onConnectionChangeRef = useRef(onConnectionChange)
 
-  // Keep callback ref updated
+  // Keep callback refs updated
   useEffect(() => {
     onGameEventRef.current = onGameEvent
-  }, [onGameEvent])
+    onConnectionChangeRef.current = onConnectionChange
+  }, [onGameEvent, onConnectionChange])
 
   useEffect(() => {
     const socket = io(SOCKET_URL, {
@@ -24,14 +26,17 @@ export function useSocket(onGameEvent) {
 
     socket.on('connect', () => {
       console.log('Connected to server:', socket.id)
+      if (onConnectionChangeRef.current) onConnectionChangeRef.current('connected')
     })
 
     socket.on('disconnect', (reason) => {
       console.log('Disconnected:', reason)
+      if (onConnectionChangeRef.current) onConnectionChangeRef.current('disconnected')
     })
 
     socket.on('connect_error', (error) => {
       console.error('Connection error:', error.message)
+      if (onConnectionChangeRef.current) onConnectionChangeRef.current('disconnected')
     })
 
     // Game events
