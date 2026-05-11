@@ -69,8 +69,17 @@ export function useSocket(onGameEvent, onConnectionChange) {
       socket.on(serverEvent, (data) => {
         const clientEvent = eventMap[serverEvent]
         console.log(`[Socket] Received: ${serverEvent} → ${clientEvent}`, data ? '' : '(no data)')
+        console.log(`[Socket] calling onGameEventRef.current('${clientEvent}', ...) data=`, JSON.stringify(data).substring(0, 200))
         if (onGameEventRef.current) {
-          onGameEventRef.current(clientEvent, data)
+          console.log(`[Socket] onGameEventRef.current EXISTS, calling it`)
+          try {
+            onGameEventRef.current(clientEvent, data)
+            console.log(`[Socket] onGameEventRef.current completed`)
+          } catch(e) {
+            console.error(`[Socket] onGameEventRef.current ERROR:`, e.message)
+          }
+        } else {
+          console.log(`[Socket] onGameEventRef.current is NULL/FALSE`)
         }
       })
     })
