@@ -71,7 +71,7 @@ export default function App() {
         // Online room joined - wait for game-state to start
         break
       case 'game_state':
-        dispatch({ type: 'SET_GAME_STATE', payload: data })
+        dispatch({ type: 'SET_GAME_STATE', payload: data.state })
         setScreen('game')
         break
       case 'turn_start':
