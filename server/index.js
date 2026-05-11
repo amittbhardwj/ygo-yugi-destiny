@@ -101,6 +101,28 @@ io.on('connection', (socket) => {
       socket.isYugiMode = true;
       socket.emit('room-created', { roomCode: room.code });
       console.log(`[Room] Created AI room: ${room.code} by ${playerName}`);
+
+      // Auto-start game for AI mode since player2 is pre-ready
+      if (room.state.players.player1?.ready && room.state.players.player2?.ready) {
+        const gs = createGameState(room.state.players.player1.name, room.state.players.player2.name);
+        gs.started = true;
+        gs.currentPlayer = 'player1';
+        gs.phase = 'draw';
+        room.state.gameState = gs;
+        io.to(room.code).emit('turn-start', { player: gs.currentPlayer, phase: gs.phase, turn: gs.turn });
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+        console.log(`[Game] Started (AI mode): ${room.code}`);
+        // Trigger AI turn after a short delay
+        if (room.state.yugiMode) {
+          setAITimeout(room.code, () => {
+            if (room.state && room.state.gameState && room.state.gameState.started) {
+              executeYugiTurn(room.state.gameState, io, room.code, () => {
+                io.to(room.code).emit('game-state', { state: serialize(room.state.gameState, null) });
+              });
+            }
+          }, 800);
+        }
+      }
     } catch (err) {
       socket.emit('error', { message: err.message });
     }
