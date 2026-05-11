@@ -3,7 +3,7 @@ services:
     name: ygo-yugi-destiny
     env: node
     region: oregon
-    buildCommand: npm install && npm run build
+    buildCommand: rm -rf client/dist && npm install && npm run build
     startCommand: npm start
     healthCheckPath: /
     envVars:
