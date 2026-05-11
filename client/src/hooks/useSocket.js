@@ -39,26 +39,38 @@ export function useSocket(onGameEvent, onConnectionChange) {
       if (onConnectionChangeRef.current) onConnectionChangeRef.current('disconnected')
     })
 
-    // Game events
-    const gameEvents = [
-      'game_start',
-      'game_state',
-      'phase_change',
-      'turn_start',
-      'card_played',
-      'attack_executed',
-      'card_destroyed',
-      'lp_change',
-      'game_over',
-      'opponent_action',
-      'your_turn',
-      'phase_advance',
-    ]
+    // Game events - server emits kebab-case, client sends snake_case
+    // Map both naming conventions
+    const eventMap = {
+      // Server → Client event names
+      'game-state': 'game_state',
+      'turn-start': 'turn_start',
+      'phase-change': 'phase_change',
+      'card-played': 'card_played',
+      'attack-executed': 'attack_executed',
+      'card-destroyed': 'card_destroyed',
+      'lp-change': 'lp_change',
+      'game-over': 'game_over',
+      'opponent-action': 'opponent_action',
+      'opponent-ready': 'opponent_ready',
+      'opponent-joined': 'opponent_joined',
+      'your-turn': 'your_turn',
+      'phase-advance': 'phase_advance',
+      'room-created': 'room_created',
+      'joined': 'joined',
+      'action-result': 'action_result',
+      'attack-result': 'attack_result',
+      'yugi-action': 'yugi_action',
+      'error': 'error',
+    }
 
-    gameEvents.forEach((event) => {
-      socket.on(event, (data) => {
+    // Listen for all server-emitted events and normalize to snake_case
+    Object.keys(eventMap).forEach(serverEvent => {
+      socket.on(serverEvent, (data) => {
+        const clientEvent = eventMap[serverEvent]
+        console.log(`[Socket] Received: ${serverEvent} → ${clientEvent}`, data ? '' : '(no data)')
         if (onGameEventRef.current) {
-          onGameEventRef.current(event, data)
+          onGameEventRef.current(clientEvent, data)
         }
       })
     })
@@ -70,6 +82,7 @@ export function useSocket(onGameEvent, onConnectionChange) {
 
   const emit = useCallback((event, data) => {
     if (socketRef.current && socketRef.current.connected) {
+      console.log(`[Socket] Emitting: ${event}`, data ? data : '')
       socketRef.current.emit(event, data)
     } else {
       console.warn('Socket not connected')

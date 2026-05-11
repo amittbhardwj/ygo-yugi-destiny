@@ -61,55 +61,45 @@ export default function App() {
       case 'connect':
         dispatch({ type: 'SET_CONNECTION', payload: 'connected' })
         break
-
       case 'disconnect':
         dispatch({ type: 'SET_CONNECTION', payload: 'disconnected' })
         break
-
+      case 'room_created':
+        // AI room created - will get game-state next
+        break
       case 'joined':
         // Online room joined - wait for game-state to start
         break
-      case 'room-created':
-        // AI room created - will get game-state next
-        break
-      case 'game-state':
+      case 'game_state':
         dispatch({ type: 'SET_GAME_STATE', payload: data })
         setScreen('game')
         break
-
-      case 'phase_change':
-        dispatch({ type: 'SET_PHASE', payload: data.phase })
-        break
-
-      case 'turn-start':
       case 'turn_start':
       case 'your_turn':
         dispatch({ type: 'SET_TURN', payload: true })
         break
-
+      case 'phase_change':
+        dispatch({ type: 'SET_PHASE', payload: data.phase })
+        break
       case 'opponent_action':
+      case 'opponent_ready':
+      case 'opponent_joined':
         dispatch({ type: 'SET_TURN', payload: false })
         break
-
       case 'card_played':
         dispatch({ type: 'CARD_PLAYED', payload: data })
         break
-
       case 'attack_executed':
         dispatch({ type: 'ATTACK', payload: data })
-        // Clear selection after attack
         dispatch({ type: 'SELECT_MONSTER', payload: null })
         dispatch({ type: 'SET_ATTACK_TARGETS', payload: [] })
         break
-
       case 'lp_change':
         dispatch({ type: 'LP_CHANGE', payload: data })
         break
-
       case 'game_over':
         dispatch({ type: 'GAME_OVER', payload: data.winner })
         break
-
       default:
         break
     }
