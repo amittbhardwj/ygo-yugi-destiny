@@ -583,6 +583,80 @@ io.on('connection', (socket) => {
     }
   });
 
+  // --- End Turn ---
+  // Cycles through all remaining phases then advances once more to trigger AI
+  socket.on('end-turn', () => {
+    try {
+      const room = getRoomBySocket(socket.id);
+      if (!room || !room.gameState || !room.gameState.started) {
+        socket.emit('error', { message: 'Game not started' });
+        return;
+      }
+
+      const gs = room.gameState;
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
+
+      if (gs.currentPlayer !== playerKey) {
+        socket.emit('error', { message: 'Not your turn' });
+        return;
+      }
+
+      // Loop through all remaining phases until 'end'
+      while (gs.phase !== 'end') {
+        const result = advancePhase(gs);
+        if (!result.success) break;
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      }
+
+      // Advance one more time to switch turns
+      const result = advancePhase(gs);
+      if (!result.success) {
+        socket.emit('error', { message: result.error });
+        return;
+      }
+
+      const prevPlayer = playerKey;
+      gs.log.push(`${gs.players[playerKey].name} ended their turn`);
+
+      io.to(room.code).emit('turn-start', {
+        player: gs.currentPlayer,
+        phase: gs.phase,
+        turn: gs.turn
+      });
+      io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+
+      // In yugiMode: player1's turn ends → AI takes over
+      const turnJustSwitchedToAI = (room.yugiMode && prevPlayer === 'player1');
+      if (turnJustSwitchedToAI) {
+        gs.playerLocked = false;
+        console.log(`[AI TRIGGER] player1 ended, AI turn beginning (turn ${gs.turn})`);
+        setAITimeout(room.code, () => {
+          if (room && room.gameState && room.gameState.started) {
+            console.log(`[AI START] turn=${gs.turn}, phase=${gs.phase}, currentPlayer=${gs.currentPlayer}`);
+            io.to(room.code).emit('yugi-thinking', {});
+            executeYugiTurn(gs, io, room.code, (action) => {
+              io.to(room.code).emit('yugi-action', { action });
+              io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+            }).then(() => {
+              if (room && room.gameState) {
+                room.gameState.playerLocked = false;
+                // AI turn done → signal player1's turn
+                io.to(room.code).emit('turn-start', {
+                  player: 'player1',
+                  phase: gs.phase,
+                  turn: gs.turn
+                });
+                io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+              }
+            }).catch(() => {});
+          }
+        }, 600);
+      }
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
   // --- Surrender ---
   socket.on('surrender', () => {
     try {

@@ -144,8 +144,6 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
 
   // ---- MAIN PHASE 1 ----
   await delay(THINK_DELAY);
-
-  // Summon the strongest monster
   const summonable = findMonsterInHand(ai.hand);
   if (summonable.length > 0) {
     const best = sortMonstersByPriority(summonable)[0];
@@ -233,10 +231,9 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   }
 
   // ---- BATTLE PHASE ----
+  await delay(THINK_DELAY);
   await stepPhase(emitFn); // main1 → battle
   await delay(THINK_DELAY);
-
-  // Flip any defense monsters to attack
   for (const monster of ai.field.monsters) {
     if (monster.position === 'defense' && !monster.faceDown) {
       monster.position = 'attack';
@@ -289,25 +286,12 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   }
 
   // ---- MAIN PHASE 2 ----
+  await delay(THINK_DELAY);
   await stepPhase(emitFn); // battle → main2
-  // Play any remaining spells
-  const remainingSpells = findSpellInHand(ai.hand);
-  for (const spell of remainingSpells) {
-    if (roll(0.2)) continue; // 20% skip
-    const base = getCardBase(spell.cardId);
-    if (base && (base.effect === 'damage_800' || base.effect === 'damage_1000')) {
-      const dmg = base.effect === 'damage_800' ? 800 : 1000;
-      player.lp -= dmg;
-      ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
-      ai.grave.push({ ...spell });
-      gameState.log.push(`Yugi used ${base.name}! ${dmg} damage!`);
-      emitFn({ type: 'spell', cardId: spell.cardId, damage: dmg });
-      await delay(THINK_DELAY);
-    }
-  }
+  await delay(THINK_DELAY);
 
   // ---- END PHASE ----
-  await stepPhase(emitFn); // main2 → end (returns control to player)
+  await stepPhase(emitFn); // main2 → end
   gameState.log.push(`Yugi ended their turn`);
   emitFn({ type: 'end-phase' });
 }
