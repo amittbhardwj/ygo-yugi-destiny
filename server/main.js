@@ -640,7 +640,11 @@ io.on('connection', (socket) => {
             }).then(() => {
               if (room && room.gameState) {
                 room.gameState.playerLocked = false;
-                // AI turn done → signal player1's turn
+                room.gameState.currentPlayer = 'player1';
+                // In yugiMode, AI finished end phase — force advance to start new turn for player1
+                if (room.yugiMode) {
+                  advancePhase(room.gameState);
+                }
                 io.to(room.code).emit('turn-start', {
                   player: 'player1',
                   phase: gs.phase,
