@@ -4,10 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
-    "server:dev": "node --watch server/index.js",
+    "server:dev": "node --watch server/main.js",
     "client:dev": "cd client && npm run dev",
     "build": "cd client && npm run build",
-    "start": "node server/index.js",
+    "start": "node server/main.js",
     "setup": "npm install && cd client && npm install"
   },
   "dependencies": {
@@ -21,6 +21,6 @@
   },
   "nixpacks": {
     "build_cmd": "cd client && npm install && npx vite build",
-    "start_cmd": "node server/index.js"
+    "start_cmd": "node server/main.js"
   }
 }
