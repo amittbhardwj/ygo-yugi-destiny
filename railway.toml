@@ -6,4 +6,4 @@ serviceId = "1571de7d-2def-484a-ae1d-c16ca20e6d8e"
 builder = "NIXPACKS"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "npm run build && node server/index.js"
