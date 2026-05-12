@@ -60,6 +60,7 @@ export default function Card({ card, faceDown = false, selected = false, selecta
     if (!card) return null
     const cardType = getCardType()
     const style = FRAME_STYLES[cardType]
+    const showStats = cardType === 'normal' || cardType === 'effect'
     const { name, level, attribute, atk, def } = card
 
     // imgUrl comes from server (ygoprodeck numeric ID mapping). Fallback: try card.id as base ID
@@ -98,10 +99,12 @@ export default function Card({ card, faceDown = false, selected = false, selecta
           </div>
         )}
 
-        <div className="flex justify-between mt-0.5">
-          {atk !== undefined && <span className={`${statsSize} font-bold text-red-400`}>ATK {atk}</span>}
-          {def !== undefined && <span className={`${statsSize} font-bold text-blue-400`}>DEF {def}</span>}
-        </div>
+        {showStats && (
+          <div className="flex justify-between mt-0.5">
+            {atk !== undefined && <span className={`${statsSize} font-bold text-red-400`}>ATK {atk}</span>}
+            {def !== undefined && <span className={`${statsSize} font-bold text-blue-400`}>DEF {def}</span>}
+          </div>
+        )}
       </div>
     )
   }

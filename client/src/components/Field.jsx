@@ -52,16 +52,16 @@ export default function Field({
 
   return (
     <div className="space-y-3">
-      {/* Spell/Trap row */}
-      <div className="flex gap-2 justify-center items-center">
-        <span className="text-xs text-[#D4AF37] opacity-60 self-center mr-1 w-6 text-right font-bold">S/T</span>
-        {[...Array(5)].map((_, i) => renderSlot(spells[i], i, 'spell'))}
-      </div>
-
       {/* Monster row */}
       <div className="flex gap-2 justify-center items-center">
         <span className="text-xs text-[#D4AF37] opacity-60 self-center mr-1 w-6 text-right font-bold">M</span>
         {[...Array(5)].map((_, i) => renderSlot(monsters[i], i, 'monster'))}
+      </div>
+
+      {/* Spell/Trap row */}
+      <div className="flex gap-2 justify-center items-center">
+        <span className="text-xs text-[#D4AF37] opacity-60 self-center mr-1 w-6 text-right font-bold">S/T</span>
+        {[...Array(5)].map((_, i) => renderSlot(spells[i], i, 'spell'))}
       </div>
     </div>
   )

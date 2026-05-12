@@ -73,15 +73,8 @@ function gameReducer(state, action) {
 const initialState = {
   gameState: null,
   phase: 'Draw',
-  isYourTurn: false,
-  selectedMonster: null,
-  attackTargets: [],
-  lastAction: null,
-  gameOver: false,
-  winner: null,
-  connectionStatus: 'disconnected',
-  overlayMessage: null,
   rawPhase: 'draw',
+  isYourTurn: false,
 }
 
 export default function App() {
@@ -182,10 +175,10 @@ export default function App() {
         setTimeout(() => dispatch({ type: 'CLEAR_OVERLAY' }), 2000)
         break
         
-      default:
-        break
-    }
-  }, [])
+        default:
+          break
+      }
+    }, [state.gameState])
 
   const { emit } = useSocket(handleGameEvent, setConnectionStatus)
 
@@ -269,15 +262,17 @@ export default function App() {
     }
   }, [state.selectedMonster, state.gameState, emit])
 
-  const handleEndPhase = useCallback(() => {
-    console.log('[HEP] emitting end-phase')
-    emit('end-phase', {})
-  }, [emit])
-
   const handleEndTurn = useCallback(() => {
+    if (!state.gameState?.started) return
     console.log('[HET] emitting end-turn')
     emit('end-turn', {})
-  }, [emit])
+  }, [state.gameState, emit])
+
+  const handleEndPhase = useCallback(() => {
+    if (!state.gameState?.started) return
+    console.log('[HEP] emitting end-phase')
+    emit('end-phase', {})
+  }, [state.gameState, emit])
 
   const handleSurrender = useCallback(() => {
     if (confirm('Are you sure you want to surrender?')) {
