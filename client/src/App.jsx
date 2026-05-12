@@ -240,7 +240,7 @@ export default function App() {
   }, [emit])
 
   const handleSelectMonster = useCallback((index) => {
-    if (state.phase === 'Battle' && state.isYourTurn) {
+    if (state.rawPhase === 'battle' && state.isYourTurn) {
       dispatch({ type: 'SELECT_MONSTER', payload: index })
       const targets = []
       const opponentMonsters = state.gameState?.opponent?.field?.monsters || []
@@ -249,7 +249,7 @@ export default function App() {
       })
       dispatch({ type: 'SET_ATTACK_TARGETS', payload: targets })
     }
-  }, [state.phase, state.isYourTurn, state.gameState?.opponent])
+  }, [state.rawPhase, state.isYourTurn, state.gameState?.opponent])
 
   const handleAttackTarget = useCallback((targetIndex) => {
     if (state.selectedMonster !== null) {
