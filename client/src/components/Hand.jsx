@@ -1,6 +1,6 @@
 import Card from './Card'
 
-export default function Hand({ cards, isOpponent = false, onCardClick, selectable = false }) {
+export default function Hand({ cards, isOpponent = false, onCardClick, selectable = false, onHover }) {
   if (isOpponent) {
     return (
       <div className="flex gap-2 p-2 bg-ygo-dark/50 rounded-lg overflow-x-auto hand-scroll">
@@ -19,7 +19,9 @@ export default function Hand({ cards, isOpponent = false, onCardClick, selectabl
           card={card}
           faceDown={false}
           selectable={selectable}
+          onHover={(c) => onHover && onHover(c)}
           onClick={() => onCardClick && onCardClick(card, index)}
+          size="hand"
         />
       ))}
     </div>

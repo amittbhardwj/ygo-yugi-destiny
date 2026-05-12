@@ -4,6 +4,7 @@
  */
 
 import CARDS from './cards.js';
+import { getCardImageUrl } from './cardImages.js';
 
 // Fisher-Yates shuffle
 function shuffleDeck(deck) {
@@ -46,6 +47,7 @@ function createGameState(player1Name, player2Name) {
     winner: null,
     log: [],
     started: false,
+    playerLocked: false,  // Prevents AI from firing during player actions
   };
 
   state.players.player1.deck = p1Deck;
@@ -264,16 +266,18 @@ function serialize(state, forSocketId) {
       name: player.name,
       lp: player.lp,
       // Show full hand only to owner
-      hand: isOwner ? player.hand : player.hand.map(() => ({ hidden: true })),
+      hand: isOwner ? player.hand.map(c => ({ ...c, imgUrl: getCardImageUrl(c.cardId) })) : player.hand.map(() => ({ hidden: true })),
       deckCount: player.deck.length,
       field: {
         monsters: player.field.monsters.map(m => ({
           ...m,
+          imgUrl: getCardImageUrl(m.cardId),
           // Hide face-down cards that belong to opponent
           faceDown: isOwner ? m.faceDown : (opponent?.id === forSocketId ? m.faceDown : m.faceDown),
         })),
         spells: player.field.spells.map(s => ({
           ...s,
+          imgUrl: getCardImageUrl(s.cardId),
           faceDown: isOwner ? s.faceDown : s.faceDown,
         })),
       },

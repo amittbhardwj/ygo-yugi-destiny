@@ -109,7 +109,7 @@ io.on('connection', (socket) => {
         gs.started = true;
         gs.players.player1.id = socket.id; // Store socketId so playerKey detection works in all handlers
         gs.currentPlayer = 'player1';
-        gs.phase = 'draw';
+        gs.phase = 'standby'; // Skip draw phase auto-advance for player1
         room.state.gameState = gs;
         io.to(room.roomCode).emit('turn-start', { player: gs.currentPlayer, phase: gs.phase, turn: gs.turn });
         io.to(room.roomCode).emit('game-state', { state: serialize(gs, null) });
@@ -170,7 +170,7 @@ io.on('connection', (socket) => {
 
       // Notify host
       const room = result.room;
-      const hostSocketId = room.players.player1?.socketId;
+      const hostSocketId = room.players.player1?.id;
       if (hostSocketId) {
         io.to(hostSocketId).emit('opponent-joined', { playerName });
       }
@@ -195,12 +195,12 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const playerKey = room.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = room.players.player1?.id === socket.id ? 'player1' : 'player2';
       room.players[playerKey].ready = true;
 
       // Notify opponent
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
-      const opponentSocketId = room.players[opponentKey]?.socketId;
+      const opponentSocketId = room.players[opponentKey]?.id;
       if (opponentSocketId) {
         io.to(opponentSocketId).emit('opponent-ready', {});
       }
@@ -253,7 +253,7 @@ io.on('connection', (socket) => {
       }
 
       const gs = room.gameState;
-      const playerKey = gs.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
 
       // Validate it's this player's turn
@@ -269,7 +269,7 @@ io.on('connection', (socket) => {
       }
 
       // Find the card in hand
-      const cardIndex = gs.players[playerKey].hand.findIndex(c => c.id === cardId);
+      const cardIndex = gs.players[playerKey].hand.findIndex(c => c.cardId === cardId);
       if (cardIndex === -1) {
         socket.emit('error', { message: 'Card not in hand' });
         return;
@@ -296,6 +296,7 @@ io.on('connection', (socket) => {
       }
 
       gs.log.push(`${gs.players[playerKey].name} summoned ${card.name}`);
+      gs.playerLocked = true;
 
       // Broadcast action result
       io.to(room.code).emit('action-result', {
@@ -321,7 +322,7 @@ io.on('connection', (socket) => {
       }
 
       const gs = room.gameState;
-      const playerKey = gs.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
 
       if (gs.currentPlayer !== playerKey) {
         socket.emit('error', { message: 'Not your turn' });
@@ -333,7 +334,7 @@ io.on('connection', (socket) => {
         return;
       }
 
-      const cardIndex = gs.players[playerKey].hand.findIndex(c => c.id === cardId);
+      const cardIndex = gs.players[playerKey].hand.findIndex(c => c.cardId === cardId);
       if (cardIndex === -1) {
         socket.emit('error', { message: 'Card not in hand' });
         return;
@@ -353,6 +354,7 @@ io.on('connection', (socket) => {
 
       const position = faceDown === false ? 'open' : 'set';
       gs.log.push(`${gs.players[playerKey].name} set ${card.name} (${position})`);
+      gs.playerLocked = true;
 
       io.to(room.code).emit('action-result', {
         success: true,
@@ -375,7 +377,7 @@ io.on('connection', (socket) => {
       }
 
       const gs = room.gameState;
-      const playerKey = gs.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
 
       if (gs.currentPlayer !== playerKey) {
         socket.emit('error', { message: 'Not your turn' });
@@ -426,7 +428,7 @@ io.on('connection', (socket) => {
       }
 
       const gs = room.gameState;
-      const playerKey = gs.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
 
       if (gs.currentPlayer !== playerKey) {
         socket.emit('error', { message: 'Not your turn' });
@@ -476,7 +478,7 @@ io.on('connection', (socket) => {
       }
 
       const gs = room.gameState;
-      const playerKey = gs.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
 
       if (gs.currentPlayer !== playerKey) {
         socket.emit('error', { message: 'Not your turn' });
@@ -531,13 +533,15 @@ io.on('connection', (socket) => {
       }
 
       const gs = room.gameState;
-      const playerKey = gs.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
 
       if (gs.currentPlayer !== playerKey) {
         socket.emit('error', { message: 'Not your turn' });
         return;
       }
 
+      const prevPhase = gs.phase;
+      const prevPlayer = gs.currentPlayer;
       const result = advancePhase(gs);
       if (!result.success) {
         socket.emit('error', { message: result.error });
@@ -553,17 +557,26 @@ io.on('connection', (socket) => {
       });
       io.to(room.code).emit('game-state', { state: serialize(gs, null) });
 
-      // If Yugi mode and it's the AI's turn, trigger AI
-      if (room.yugiMode && gs.currentPlayer === 'player2' && gs.phase === 'draw') {
+      // In yugiMode: player1's turn ends when they advance from 'end' phase.
+      // At that moment, turn switches to player2 (AI). Clear playerLocked and fire AI.
+      const turnJustSwitchedToAI = (room.yugiMode && playerKey === 'player1' && prevPhase === 'end');
+      if (turnJustSwitchedToAI) {
+        gs.playerLocked = false; // unlock so AI can act
+        console.log(`[AI TRIGGER] player1 ended, AI turn beginning (turn ${gs.turn})`);
         setAITimeout(room.code, () => {
           if (room && room.gameState && room.gameState.started) {
+            console.log(`[AI START] turn=${gs.turn}, phase=${gs.phase}, currentPlayer=${gs.currentPlayer}`);
             io.to(room.code).emit('yugi-thinking', {});
             executeYugiTurn(gs, io, room.code, (action) => {
               io.to(room.code).emit('yugi-action', { action });
               io.to(room.code).emit('game-state', { state: serialize(gs, null) });
-            });
+            }).then(() => {
+              if (room && room.gameState) {
+                room.gameState.playerLocked = false;
+              }
+            }).catch(() => {});
           }
-        }, 800);
+        }, 600);
       }
     } catch (err) {
       socket.emit('error', { message: err.message });
@@ -580,7 +593,7 @@ io.on('connection', (socket) => {
       }
 
       const gs = room.gameState;
-      const playerKey = gs.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
       const winnerKey = playerKey === 'player1' ? 'player2' : 'player1';
 
       gs.winner = winnerKey;
@@ -605,7 +618,7 @@ io.on('connection', (socket) => {
       const room = getRoomBySocket(socket.id);
       if (room) {
         clearAITimeout(room.code);
-        const playerKey = room.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+        const playerKey = room.players.player1?.id === socket.id ? 'player1' : 'player2';
         closeRoom(room.code);
         socket.emit('left-room', {});
         socket.leave(room.code);
@@ -622,9 +635,9 @@ io.on('connection', (socket) => {
     const room = getRoomBySocket(socket.id);
     if (room) {
       clearAITimeout(room.code);
-      const playerKey = room.players.player1?.socketId === socket.id ? 'player1' : 'player2';
+      const playerKey = room.players.player1?.id === socket.id ? 'player1' : 'player2';
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
-      const opponentSocketId = room.players[opponentKey]?.socketId;
+      const opponentSocketId = room.players[opponentKey]?.id;
 
       if (room.gameState && room.gameState.started && room.players[opponentKey]) {
         // Opponent wins by forfeit

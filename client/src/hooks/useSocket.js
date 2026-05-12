@@ -48,6 +48,8 @@ export function useSocket(onGameEvent, onConnectionChange) {
       'opponent-joined': 'opponent_joined',
       'your-turn': 'your_turn',
       'phase-advance': 'phase_advance',
+      'your-turn': 'your_turn',
+      'phase-advance': 'phase_advance',
       'room-created': 'room_created',
       'joined': 'joined',
       'action-result': 'action_result',

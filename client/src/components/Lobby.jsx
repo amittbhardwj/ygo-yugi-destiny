@@ -1,8 +1,10 @@
 import { useState } from 'react'
 
 export default function Lobby({ onStartGame, connectionStatus }) {
-  const [mode, setMode] = useState(null) // 'yugi' or 'online'
-  const [playerName, setPlayerName] = useState('')
+  const isDev = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('dev') === 'true'
+  console.log('[LOBBY] isDev:', isDev, 'search:', typeof window !== 'undefined' ? window.location.search : 'no-window')
+  const [mode, setMode] = useState(isDev ? 'yugi' : null) // 'yugi' or 'online'
+  const [playerName, setPlayerName] = useState(isDev ? 'Jarvis' : '')
   const [roomCode, setRoomCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
 

@@ -115,6 +115,11 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
 
   const THINK_DELAY = 500 + Math.random() * 300;
 
+  // GUARD: Only act if it's AI's turn and player is not locked
+  if (gameState.currentPlayer !== AI_KEY || gameState.playerLocked) {
+    return;
+  }
+
   // ---- MAIN PHASE 1 ----
   await delay(THINK_DELAY);
 
