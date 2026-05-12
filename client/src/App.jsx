@@ -214,7 +214,12 @@ export default function App() {
     if (actionType === 'summon') {
       emit('play-card', { cardId: card.cardId, position: 'attack' })
     } else if (actionType === 'set') {
-      emit('play-card', { cardId: card.cardId, position: 'defense' })
+      // Spell/Trap cards use set-spell-trap; monsters use play-card
+      if (card.type === 'monster') {
+        emit('play-card', { cardId: card.cardId, position: 'defense' })
+      } else {
+        emit('set-spell-trap', { cardId: card.cardId, faceDown: true })
+      }
     } else if (actionType === 'activate') {
       emit('play-card', { cardId: card.cardId, position: 'open' })
     } else if (actionType === 'hand') {

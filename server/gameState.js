@@ -246,6 +246,9 @@ function advancePhase(state) {
     state.turn++;
     state.phase = 'draw';
 
+    // Reset playerLocked so the new current player can act
+    state.playerLocked = false;
+
     // Draw phase
     drawCard(state, state.currentPlayer);
 
