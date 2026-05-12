@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { io } from 'socket.io-client'
 
-const SOCKET_URL = window.location.origin
+const SOCKET_URL = (window.__SOCKET_URL__ || window.location.origin)
 
 export function useSocket(onGameEvent, onConnectionChange) {
   const socketRef = useRef(null)

@@ -1,6 +1,7 @@
 /**
- * Test against live Railway deployment
+ * Clean end-to-end test with real server
  */
+import { spawn } from 'child_process'
 import { createServer } from 'http'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
@@ -9,9 +10,17 @@ import { fileURLToPath } from 'url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const distDir = join(__dirname, 'client/dist')
 
+// Start game server on 3456
+const gameServer = spawn('node', [join(__dirname, 'server/index.js')], {
+  detached: true,
+  stdio: 'inherit',
+  env: { ...process.env, PORT: '3456' }
+})
+gameServer.unref()
+
 // Static server on 3457
 const localHTML = readFileSync(join(distDir, 'index.html'), 'utf8')
-  .replace('const SOCKET_URL = window.location.origin', 'const SOCKET_URL = "https://ygo-yugi-destiny-production.up.railway.app"')
+  .replace('const SOCKET_URL = window.location.origin', 'const SOCKET_URL = "http://localhost:3456"')
 writeFileSync(join(distDir, 'index-patched.html'), localHTML)
 
 const httpServer = createServer((req, res) => {
@@ -35,20 +44,19 @@ setTimeout(async () => {
 
   page.on('console', msg => {
     const t = msg.type()
-    if (t === 'error') process.stdout.write(`[E] ${msg.text().substring(0, 300)}\n`)
-    if (t === 'log') process.stdout.write(`[L] ${msg.text().substring(0, 300)}\n`)
+    if (t === 'error') process.stdout.write(`[E] ${msg.text().substring(0, 200)}\n`)
+    if (t === 'log') process.stdout.write(`[L] ${msg.text().substring(0, 200)}\n`)
   })
 
-  console.log('Loading page against Railway server...')
   await page.goto('http://localhost:3457')
-  await page.waitForTimeout(3000)
+  await page.waitForTimeout(2000)
 
   // Click Play vs Yugi
   await page.locator('button:has-text("Play vs Yugi")').click()
   await page.waitForTimeout(500)
   await page.locator('input').fill('Amitt')
   await page.locator('button:has-text("Start Duel")').click()
-  await page.waitForTimeout(5000)
+  await page.waitForTimeout(4000)
 
   const body = await page.locator('body').innerText()
   console.log('\n=== GAME SCREEN ===')
@@ -62,18 +70,11 @@ setTimeout(async () => {
   }
 
   const handScroll = await page.locator('.hand-scroll').count()
-  const handCards = await page.locator('.hand-scroll .card').count()
-  console.log(`\n.hand-scroll: ${handScroll} | .hand-scroll .card: ${handCards}`)
+  console.log(`\n.hand-scroll count: ${handScroll}`)
 
-  // Check connection status
-  const connText = await page.locator('body').innerText()
-  const isConnected = !connText.includes('Disconnected') && !connText.includes('Connect')
-  console.log(`Connection status: ${isConnected ? 'CONNECTED' : 'NOT CONNECTED'}`)
-
-  await page.screenshot({ path: '/tmp/ygo-railway-test.png', fullPage: true })
-  console.log('\nScreenshot: /tmp/ygo-railway-test.png')
+  await page.screenshot({ path: '/tmp/ygo-final-test.png', fullPage: true })
+  console.log('\nScreenshot: /tmp/ygo-final-test.png')
 
   await browser.close()
-  httpServer.close()
   process.exit(0)
-}, 2000)
+}, 3000)

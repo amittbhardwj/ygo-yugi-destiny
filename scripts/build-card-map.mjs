@@ -1,10 +1,13 @@
 /**
- * Build card image map from ygoprodeck API
+ * Build card image map from ygoprodeck API using correct URL format
  * Run: node scripts/build-card-map.mjs
  */
 import { readFileSync, writeFileSync } from 'fs'
 
-// Load and parse cards_1.js manually (no ES module issues)
+const YGOPRO_URL = 'https://images.ygoprodeck.com/images/cards'
+const DB_API = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?name='
+
+// Load and parse cards
 const raw = readFileSync('./server/cards_1.js', 'utf8')
 const cardsMatch = raw.match(/\[\s*\{.*\}\s*\]/s)
 if (!cardsMatch) { console.error('Parse error'); process.exit(1) }
@@ -16,9 +19,6 @@ for (const match of cardTexts) {
   for (const f of fields) obj[f[1]] = f[2]
   if (obj.id) CARDS.push(obj)
 }
-
-const DB_API = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?name='
-const YGOPRO_URL = 'https://storage.googleapis.com/ygoprodeck.com/pics'
 
 const uniqueNames = [...new Set(CARDS.map(c => c.name))]
 console.log(`${uniqueNames.length} unique cards to fetch...`)
