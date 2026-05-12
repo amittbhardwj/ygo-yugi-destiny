@@ -2,8 +2,5 @@
 projectId = "2e8ad56c-3e36-42a5-9905-873d301868d6"
 serviceId = "1571de7d-2def-484a-ae1d-c16ca20e6d8e"
 
-[build]
-builder = "DOCKERFILE"
-
 [deploy]
 startCommand = "node server/main.js"
