@@ -195,6 +195,17 @@ export default function App() {
     }
   }, [])
 
+  // Auto-advance from Standby Phase to Main Phase 1 after 3 seconds
+  useEffect(() => {
+    let timer;
+    if (state.isYourTurn && state.phase === 'Standby') {
+      timer = setTimeout(() => {
+        emit('end-phase', {})
+      }, 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [state.isYourTurn, state.phase, emit])
+
   const handleStartGame = useCallback((config) => {
     setRoomInfo(config)
     if (config.mode === 'yugi') {

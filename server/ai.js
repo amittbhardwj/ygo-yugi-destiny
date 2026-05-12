@@ -3,7 +3,7 @@
  * AI opponent logic for single-player mode
  */
 
-import { summonMonster, setSpellTrap, executeAttack, directAttack, advancePhase, drawCard } from './gameState.js';
+import { summonMonster, setSpellTrap, executeAttack, directAttack, advancePhase, drawCard, serialize } from './gameState.js';
 import { resolveSpellEffect } from './rules.js';
 
 const PHASES = ['draw', 'standby', 'main1', 'battle', 'main2', 'end'];
@@ -115,10 +115,32 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
 
   const THINK_DELAY = 500 + Math.random() * 300;
 
+  // Advance to next phase and notify clients
+  async function stepPhase(emitFn) {
+    const result = advancePhase(gameState);
+    if (result.success) {
+      io.to(roomCode).emit('turn-start', {
+        player: gameState.currentPlayer,
+        phase: gameState.phase,
+        turn: gameState.turn
+      });
+      io.to(roomCode).emit('game-state', { state: serialize(gameState, null) });
+    }
+    await delay(THINK_DELAY);
+  }
+
   // GUARD: Only act if it's AI's turn and player is not locked
   if (gameState.currentPlayer !== AI_KEY || gameState.playerLocked) {
     return;
   }
+
+  // ---- DRAW PHASE ----
+  await delay(THINK_DELAY);
+  await stepPhase(emitFn); // draw → standby
+
+  // ---- STANDBY PHASE ----
+  await delay(THINK_DELAY);
+  await stepPhase(emitFn); // standby → main1
 
   // ---- MAIN PHASE 1 ----
   await delay(THINK_DELAY);
@@ -211,6 +233,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   }
 
   // ---- BATTLE PHASE ----
+  await stepPhase(emitFn); // main1 → battle
   await delay(THINK_DELAY);
 
   // Flip any defense monsters to attack
@@ -266,6 +289,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   }
 
   // ---- MAIN PHASE 2 ----
+  await stepPhase(emitFn); // battle → main2
   // Play any remaining spells
   const remainingSpells = findSpellInHand(ai.hand);
   for (const spell of remainingSpells) {
@@ -283,7 +307,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   }
 
   // ---- END PHASE ----
-  const result = advancePhase(gameState);
+  await stepPhase(emitFn); // main2 → end (returns control to player)
   gameState.log.push(`Yugi ended their turn`);
   emitFn({ type: 'end-phase' });
 }
