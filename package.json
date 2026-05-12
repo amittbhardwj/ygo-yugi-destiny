@@ -20,7 +20,7 @@
     "concurrently": "^8.2.2"
   },
   "nixpacks": {
-    "build_cmd": "cd client && npm install && npx vite build",
+    "build_cmd": "rm -rf client/dist && cd client && npm install && npx vite build",
     "start_cmd": "node server/main.js"
   }
 }
