@@ -275,8 +275,8 @@ export default function App() {
   }, [emit])
 
   const handleEndTurn = useCallback(() => {
-    console.log('[HET] emitting end-phase (end turn)')
-    emit('end-phase', {})
+    console.log('[HET] emitting end-turn')
+    emit('end-turn', {})
   }, [emit])
 
   const handleSurrender = useCallback(() => {
