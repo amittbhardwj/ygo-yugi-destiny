@@ -93,6 +93,7 @@ function setAITimeout(roomCode, fn, delayMs) {
 function finishAITurnIfNeeded(roomState) {
   if (!roomState || !roomState.yugiMode || !roomState.gameState) return;
   const gs = roomState.gameState;
+  if (gs.winner || !gs.started) return;
   gs.playerLocked = false;
 
   // executeYugiTurn intentionally plays through Yugi's End Phase, but does not
@@ -101,6 +102,7 @@ function finishAITurnIfNeeded(roomState) {
   // will switch back to Yugi and leave the duel stuck on the AI draw phase.
   if (gs.currentPlayer === 'player2' && gs.phase === 'end') {
     advancePhase(gs);
+    if (checkWinCondition(gs, roomState.code, io)) return;
     io.to(roomState.code).emit('turn-start', {
       player: gs.currentPlayer,
       phase: gs.phase,
@@ -152,7 +154,9 @@ io.on('connection', (socket) => {
           setAITimeout(room.roomCode, () => {
             if (room.state && room.state.gameState && room.state.gameState.started) {
               executeYugiTurn(room.state.gameState, io, room.roomCode, () => {
+                if (checkWinCondition(room.state.gameState, room.roomCode, io)) return true;
                 io.to(room.roomCode).emit('game-state', { state: serialize(room.state.gameState, null) });
+                return false;
               }).then(() => finishAITurnIfNeeded(room.state)).catch(() => {});
             }
           }, 800);
@@ -265,7 +269,9 @@ io.on('connection', (socket) => {
             if (room && room.gameState && room.gameState.started) {
               executeYugiTurn(room.gameState, io, room.code, (action) => {
                 io.to(room.code).emit('yugi-action', { action });
+                if (checkWinCondition(room.gameState, room.code, io)) return true;
                 io.to(room.code).emit('game-state', { state: serialize(room.gameState, null) });
+                return false;
               });
             }
           }, 800);
@@ -442,10 +448,9 @@ io.on('connection', (socket) => {
         message: `Activated ${card.name}`,
         newState: serialize(gs, null)
       });
-      io.to(room.code).emit('game-state', { state: serialize(gs, null) });
-
-      // Check win condition
-      checkWinCondition(gs, room.code, io);
+      if (!checkWinCondition(gs, room.code, io)) {
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      }
     } catch (err) {
       socket.emit('error', { message: err.message });
     }
@@ -492,10 +497,9 @@ io.on('connection', (socket) => {
         damage: result.damage,
         destroyed: result.destroyed || []
       });
-      io.to(room.code).emit('game-state', { state: serialize(gs, null) });
-
-      // Check win condition
-      checkWinCondition(gs, room.code, io);
+      if (!checkWinCondition(gs, room.code, io)) {
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      }
     } catch (err) {
       socket.emit('error', { message: err.message });
     }
@@ -547,10 +551,9 @@ io.on('connection', (socket) => {
         damage: result.damage,
         destroyed: []
       });
-      io.to(room.code).emit('game-state', { state: serialize(gs, null) });
-
-      // Check win condition
-      checkWinCondition(gs, room.code, io);
+      if (!checkWinCondition(gs, room.code, io)) {
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      }
     } catch (err) {
       socket.emit('error', { message: err.message });
     }
@@ -580,6 +583,7 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: result.error });
         return;
       }
+      if (checkWinCondition(gs, room.code, io)) return;
 
       gs.log.push(`${gs.players[playerKey].name} ended ${gs.phase === 'battle' ? 'Battle Phase' : 'Phase'}`);
 
@@ -602,7 +606,9 @@ io.on('connection', (socket) => {
             io.to(room.code).emit('yugi-thinking', {});
             executeYugiTurn(gs, io, room.code, (action) => {
               io.to(room.code).emit('yugi-action', { action });
+              if (checkWinCondition(gs, room.code, io)) return true;
               io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+              return false;
             }).then(() => {
               finishAITurnIfNeeded(room);
             }).catch(() => {});
@@ -645,6 +651,7 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: result.error });
         return;
       }
+      if (checkWinCondition(gs, room.code, io)) return;
 
       const prevPlayer = playerKey;
       gs.log.push(`${gs.players[playerKey].name} ended their turn`);
@@ -667,7 +674,9 @@ io.on('connection', (socket) => {
             io.to(room.code).emit('yugi-thinking', {});
             executeYugiTurn(gs, io, room.code, (action) => {
               io.to(room.code).emit('yugi-action', { action });
+              if (checkWinCondition(gs, room.code, io)) return true;
               io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+              return false;
             }).then(() => {
               finishAITurnIfNeeded(room);
             }).catch(() => {});
@@ -696,6 +705,7 @@ io.on('connection', (socket) => {
       gs.log.push(`${gs.players[playerKey].name} surrendered. ${gs.players[winnerKey].name} wins!`);
 
       io.to(room.code).emit('game-over', {
+        winnerKey,
         winner: gs.players[winnerKey].name,
         reason: 'Surrender'
       });
@@ -741,6 +751,7 @@ io.on('connection', (socket) => {
         room.gameState.log.push(`${room.players[playerKey]?.name || 'Player'} disconnected. ${room.players[opponentKey]?.name} wins!`);
         if (opponentSocketId) {
           io.to(opponentSocketId).emit('game-over', {
+            winnerKey: opponentKey,
             winner: room.players[opponentKey].name,
             reason: 'Opponent disconnected'
           });
@@ -755,31 +766,55 @@ io.on('connection', (socket) => {
 
 // --- Win Condition Checker ---
 function checkWinCondition(gs, roomCode, io) {
+  if (!gs || !gs.started) return !!gs?.winner;
+
+  if (gs.winner) {
+    const winnerKey = gs.winner;
+    io.to(roomCode).emit('game-over', {
+      winnerKey,
+      winner: gs.players[winnerKey]?.name,
+      reason: gs.winReason || 'Win condition met'
+    });
+    gs.started = false;
+    clearAITimeout(roomCode);
+    closeRoom(roomCode);
+    return true;
+  }
+
   for (const key of ['player1', 'player2']) {
     if (gs.players[key].lp <= 0) {
       const winnerKey = key === 'player1' ? 'player2' : 'player1';
+      gs.players[key].lp = 0;
       gs.winner = winnerKey;
+      gs.winReason = 'LP reached 0';
       gs.log.push(`${gs.players[key].name} ran out of LP! ${gs.players[winnerKey].name} wins!`);
       io.to(roomCode).emit('game-over', {
+        winnerKey,
         winner: gs.players[winnerKey].name,
-        reason: 'LP reached 0'
+        reason: gs.winReason
       });
+      gs.started = false;
       clearAITimeout(roomCode);
       closeRoom(roomCode);
       return true;
     }
   }
 
-  // Check for deck empty
+  // In Yu-Gi-Oh!, a player loses when they are required to draw but cannot.
+  // drawCard() sets gs.winner at the point of failed draw, so this block is a
+  // fallback for any older/manual state transitions.
   for (const key of ['player1', 'player2']) {
-    if (gs.players[key].deck.length === 0 && gs.players[key].hand.length === 0) {
+    if (gs.phase === 'draw' && gs.currentPlayer === key && gs.players[key].deck.length === 0) {
       const winnerKey = key === 'player1' ? 'player2' : 'player1';
       gs.winner = winnerKey;
-      gs.log.push(`${gs.players[key].name} has no cards left! ${gs.players[winnerKey].name} wins!`);
+      gs.winReason = 'No cards to draw';
+      gs.log.push(`${gs.players[key].name} cannot draw a card! ${gs.players[winnerKey].name} wins!`);
       io.to(roomCode).emit('game-over', {
+        winnerKey,
         winner: gs.players[winnerKey].name,
-        reason: 'No cards left'
+        reason: gs.winReason
       });
+      gs.started = false;
       clearAITimeout(roomCode);
       closeRoom(roomCode);
       return true;

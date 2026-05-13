@@ -6,6 +6,8 @@
 import CARDS from './cards.js';
 import { getCardImageUrl } from './cardImages.js';
 
+const STARTING_LP = 8000;
+
 // Fisher-Yates shuffle
 function shuffleDeck(deck) {
   const arr = [...deck];
@@ -20,7 +22,7 @@ function createPlayerState(name, socketId = null) {
   return {
     id: socketId,
     name,
-    lp: 4000,
+    lp: STARTING_LP,
     deck: [],
     hand: [],
     field: { monsters: [], spells: [] },
@@ -102,7 +104,13 @@ function generateDeck() {
 
 function drawCard(state, playerKey) {
   const p = state.players[playerKey];
-  if (p.deck.length === 0) return null;
+  if (p.deck.length === 0) {
+    const winnerKey = playerKey === 'player1' ? 'player2' : 'player1';
+    state.winner = winnerKey;
+    state.winReason = 'No cards to draw';
+    state.log.push(`${p.name} cannot draw a card! ${state.players[winnerKey].name} wins!`);
+    return null;
+  }
   const card = p.deck.pop();
   p.hand.push(card);
   return card;
@@ -317,6 +325,7 @@ function serialize(state, forSocketId) {
     currentPlayer: state.currentPlayer,
     phase: state.phase,
     winner: state.winner,
+    winReason: state.winReason || null,
     log: state.log,
     started: state.started,
   };

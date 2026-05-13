@@ -56,6 +56,9 @@ function gameReducer(state, action) {
     case 'GAME_OVER':
       return { ...state, gameOver: true, winner: action.payload, overlayMessage: null }
 
+    case 'RESET':
+      return initialState
+
     case 'SET_CONNECTION':
       return { ...state, connectionStatus: action.payload }
 
@@ -198,7 +201,7 @@ export default function App() {
         break
         
       case 'game_over':
-        dispatch({ type: 'GAME_OVER', payload: data.winner })
+        dispatch({ type: 'GAME_OVER', payload: data })
         break
         
       case 'error':
@@ -324,14 +327,16 @@ export default function App() {
 
   // Show game over screen
   if (state.gameOver) {
+    const didWin = state.winner?.winnerKey === 'player1'
     return (
       <div className="min-h-screen bg-ygo-dark flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-ygo-gold mb-4">
-            {state.winner === 'player' ? 'VICTORY!' : 'DEFEAT'}
+            {didWin ? 'VICTORY!' : 'DEFEAT'}
           </h1>
           <p className="text-gray-300 mb-8">
-            {state.winner === 'player' ? 'You won the duel!' : 'You lost the duel.'}
+            {didWin ? 'You won the duel!' : 'You lost the duel.'}
+            {state.winner?.reason ? ` ${state.winner.reason}.` : ''}
           </p>
           <button
             onClick={handlePlayAgain}

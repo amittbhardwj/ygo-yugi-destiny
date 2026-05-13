@@ -97,6 +97,10 @@ function sortMonstersByPriority(monsters) {
   });
 }
 
+function reportAction(emitFn, action) {
+  return emitFn(action) === true;
+}
+
 /**
  * Execute Yugi's turn. This is called after the draw phase.
  * It processes one action at a time with delay between each,
@@ -151,7 +155,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
     if (result.success) {
       const action = { type: 'summon', cardId: best.cardId, position: 'attack' };
       gameState.log.push(`Yugi summoned ${best.name}`);
-      emitFn(action);
+      if (reportAction(emitFn, action)) return;
       await delay(THINK_DELAY);
     }
   }
@@ -164,7 +168,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
     if (result.success) {
       const action = { type: 'set-trap', cardId: trap.cardId, faceDown: true };
       gameState.log.push(`Yugi set a trap`);
-      emitFn(action);
+      if (reportAction(emitFn, action)) return;
       await delay(THINK_DELAY);
     }
   }
@@ -186,7 +190,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
         ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
         ai.grave.push({ ...spell });
         gameState.log.push(`Yugi used ${base.name}! ${dmg} damage!`);
-        emitFn({ type: 'spell', cardId: spell.cardId, damage: dmg });
+        if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId, damage: dmg })) return;
         await delay(THINK_DELAY);
         break;
       }
@@ -196,7 +200,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
         ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
         ai.grave.push({ ...spell });
         gameState.log.push(`Yugi used ${base.name}! +500 LP`);
-        emitFn({ type: 'spell', cardId: spell.cardId });
+        if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId })) return;
         await delay(THINK_DELAY);
         break;
       }
@@ -209,7 +213,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
         ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
         ai.grave.push({ ...spell });
         gameState.log.push(`Yugi activated ${base.name}!`);
-        emitFn({ type: 'spell', cardId: spell.cardId });
+        if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId })) return;
         await delay(THINK_DELAY);
         break;
       }
@@ -220,7 +224,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
         ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
         ai.grave.push({ ...spell });
         gameState.log.push(`Yugi activated ${base.name}!`);
-        emitFn({ type: 'spell', cardId: spell.cardId });
+        if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId })) return;
         await delay(THINK_DELAY);
         break;
       }
@@ -239,7 +243,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
       monster.position = 'attack';
       monster.faceDown = false;
       gameState.log.push(`Yugi flipped ${monster.name} to attack position`);
-      emitFn({ type: 'flip', cardId: monster.cardId });
+      if (reportAction(emitFn, { type: 'flip', cardId: monster.cardId })) return;
       await delay(THINK_DELAY);
     }
   }
@@ -257,7 +261,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
       const result = directAttack(gameState, AI_KEY, attacker.cardId);
       if (result.success) {
         gameState.log.push(`Yugi's ${attacker.name} attacks directly for ${result.damage}!`);
-        emitFn({ type: 'direct-attack', attackerId: attacker.cardId, damage: result.damage });
+        if (reportAction(emitFn, { type: 'direct-attack', attackerId: attacker.cardId, damage: result.damage })) return;
         ai.attackedMonsters.push(attacker.cardId);
         await delay(THINK_DELAY);
       }
@@ -272,13 +276,13 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
       const result = executeAttack(gameState, AI_KEY, attacker.cardId, target.cardId);
       if (result.success) {
         gameState.log.push(`Yugi's ${attacker.name} attacks ${target.name}`);
-        emitFn({
+        if (reportAction(emitFn, {
           type: 'attack',
           attackerId: attacker.cardId,
           targetId: target.cardId,
           damage: result.damage,
           destroyed: result.destroyed
-        });
+        })) return;
         ai.attackedMonsters.push(attacker.cardId);
         await delay(THINK_DELAY);
       }
@@ -293,7 +297,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   // ---- END PHASE ----
   await stepPhase(emitFn); // main2 → end
   gameState.log.push(`Yugi ended their turn`);
-  emitFn({ type: 'end-phase' });
+  reportAction(emitFn, { type: 'end-phase' });
 }
 
 export { executeYugiTurn };
