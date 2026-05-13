@@ -21,10 +21,10 @@ export default function Field({
       return (
         <div
           key={index}
-          className={`w-[80px] h-[112px] rounded-lg border-2 border-dashed flex items-center justify-center transition-colors ${zoneClass} ${selectable && !isOpponent ? 'hover:border-[#D4AF37] hover:bg-black/30 cursor-pointer' : 'opacity-50'}`}
+          className={`poc-zone empty-zone ${zoneClass} ${selectable && !isOpponent ? 'poc-zone-selectable' : ''}`}
           onClick={() => onEmptySlotClick && selectable && !isOpponent && onEmptySlotClick(index, type)}
         >
-          <span className="text-gray-500 text-xs">{type === 'monster' ? 'M' : 'S/T'}</span>
+          <span className="poc-zone-label">{type === 'monster' ? 'M' : 'S/T'}</span>
         </div>
       )
     }
@@ -50,19 +50,22 @@ export default function Field({
     )
   }
 
-  return (
-    <div className="space-y-3">
-      {/* Monster row */}
-      <div className="flex gap-2 justify-center items-center">
-        <span className="text-xs text-[#D4AF37] opacity-60 self-center mr-1 w-6 text-right font-bold">M</span>
-        {[...Array(5)].map((_, i) => renderSlot(monsters[i], i, 'monster'))}
-      </div>
+  const monsterRow = (
+    <div className="poc-zone-row poc-monster-row">
+      {[...Array(5)].map((_, i) => renderSlot(monsters[i], i, 'monster'))}
+    </div>
+  )
 
-      {/* Spell/Trap row */}
-      <div className="flex gap-2 justify-center items-center">
-        <span className="text-xs text-[#D4AF37] opacity-60 self-center mr-1 w-6 text-right font-bold">S/T</span>
-        {[...Array(5)].map((_, i) => renderSlot(spells[i], i, 'spell'))}
-      </div>
+  const spellRow = (
+    <div className="poc-zone-row poc-spell-row">
+      {[...Array(5)].map((_, i) => renderSlot(spells[i], i, 'spell'))}
+    </div>
+  )
+
+  return (
+    <div className={`poc-field ${isOpponent ? 'poc-field-opponent' : 'poc-field-player'}`}>
+      {/* Power of Chaos order: spell/trap row sits behind monster row. */}
+      {isOpponent ? <>{spellRow}{monsterRow}</> : <>{monsterRow}{spellRow}</>}
     </div>
   )
 }

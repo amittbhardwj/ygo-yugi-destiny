@@ -17,8 +17,8 @@ const FRAME_STYLES = {
 }
 
 const SIZE_CONFIG = {
-  hand: { width: 80, height: 112 },
-  field: { width: 100, height: 140 },
+  hand: { width: 86, height: 120 },
+  field: { width: 70, height: 98 },
   large: { width: 140, height: 196 },
 }
 
@@ -123,6 +123,9 @@ export default function Card({ card, faceDown = false, selected = false, selecta
         ? <div className="w-full h-full card-back rounded-lg flex items-center justify-center"><span className="text-yellow-400 text-2xl font-bold opacity-50">?</span></div>
         : renderCardFace()
       }
+      {!faceDown && size === 'field' && (card.atk !== undefined || card.def !== undefined) && (
+        <div className="field-card-statline">{card.atk ?? '-'} / {card.def ?? '-'}</div>
+      )}
       {isHovered && !faceDown && <div className="absolute inset-0 rounded-lg shadow-lg shadow-yellow-400/30 pointer-events-none" />}
     </div>
   )

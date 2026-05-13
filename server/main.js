@@ -395,7 +395,7 @@ io.on('connection', (socket) => {
       const card = spell;
 
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
-      const result = resolveSpellEffect(gs, playerKey, spellIndex);
+      const result = resolveSpellEffect(gs, playerKey, cardId);
 
       if (!result.success) {
         socket.emit('error', { message: result.error });

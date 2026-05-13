@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import Hand from './Hand'
 import Field from './Field'
 import CardDetailPanel from './CardDetailPanel'
@@ -52,6 +52,30 @@ function GameOverlay({ message, subMessage }) {
   )
 }
 
+function YugiGuide({ phase, isYourTurn }) {
+  const prompt = isYourTurn
+    ? phase === 'main1'
+      ? 'Select a card from your hand, then choose Summon, Set, or Activate.'
+      : phase === 'battle'
+        ? 'Choose an attack-position monster, then select a target.'
+        : 'Click the glowing phase orb when you are ready to continue.'
+    : 'Yugi is thinking... watch the field and prepare your next move.'
+
+  return (
+    <div className="yugi-guide" aria-hidden="true">
+      <div className="yugi-sprite">
+        <div className="yugi-hair yugi-hair-back" />
+        <div className="yugi-hair yugi-hair-left" />
+        <div className="yugi-hair yugi-hair-right" />
+        <div className="yugi-face" />
+        <div className="yugi-body" />
+        <div className="yugi-arm" />
+      </div>
+      <div className="yugi-speech">{prompt}</div>
+    </div>
+  )
+}
+
 export default function GameBoard({
   gameState,
   isYourTurn,
@@ -72,7 +96,7 @@ export default function GameBoard({
   const [showPlayModal, setShowPlayModal] = useState(false)
   const [pendingPlayCard, setPendingPlayCard] = useState(null)
   const [localOverlay, setLocalOverlay] = useState(null)
-  const lastTapRef = useRef(null) // for double-tap detection
+  const [confirmEndTurn, setConfirmEndTurn] = useState(false)
   // Merge local overlay with parent-provided overlay (parent wins for turn announcements)
   const overlay = overlayMessage || localOverlay
 
@@ -86,7 +110,7 @@ export default function GameBoard({
   }, [])
 
   // Use server phase (rawPhase) for playability checks to avoid double-normalization issues
-  const canPlayCard = isYourTurn && (rawPhase === 'main1' || rawPhase === 'standby')
+  const canPlayCard = isYourTurn && (rawPhase === 'main1' || rawPhase === 'main2')
   const canBattle = isYourTurn && rawPhase === 'battle'
 
   const handleMonsterClick = (card, index) => {
@@ -95,6 +119,11 @@ export default function GameBoard({
       console.log('[handleMonsterClick] calling onSelectMonster(', index, ')');
       onSelectMonster(index)
     } else if (canBattle && selectedMonster !== null) {
+      if (selectedMonster === index && attackTargets.length === 0) {
+        emit('direct-attack', { attackerId: card.cardId })
+        onSelectMonster(null)
+        return
+      }
       if (attackTargets.includes(index)) {
         onAttackTarget(index)
       }
@@ -110,30 +139,16 @@ export default function GameBoard({
   }
 
   const handleCardClickFromHand = (card) => {
-    const now = Date.now()
-    const DOUBLE_TAP_MS = 300
-    const lastTap = lastTapRef.current
-
-    // Always show card detail on tap
     setHoveredCard(card)
-
-    // Double tap → show summon/set modal
-    if (lastTap && now - lastTap < DOUBLE_TAP_MS) {
-      lastTapRef.current = null
-      if (canPlayCard) {
-        setPendingPlayCard(card)
-        setShowPlayModal(true)
-      }
-    } else {
-      lastTapRef.current = now
-      // Single tap: just show card detail (handled above)
-      // Modal will show on double-tap above, or if canPlayCard is true and we want to bypass double-tap
-      // For now: single tap = detail only, double tap = modal
+    if (canPlayCard) {
+      setPendingPlayCard(card)
+      setShowPlayModal(true)
     }
   }
 
   return (
     <div className="game-board-root">
+      <YugiGuide phase={rawPhase} isYourTurn={isYourTurn} />
       {/* Left Panel - Card Detail */}
       <div className="left-panel">
         <CardDetailPanel card={hoveredCard} />
@@ -157,7 +172,7 @@ export default function GameBoard({
               END PHASE
             </button>
             <button
-              onClick={onEndTurn}
+              onClick={() => setConfirmEndTurn(true)}
               disabled={!isYourTurn}
               className="action-btn action-btn-end-turn"
               title="End your turn"
@@ -190,7 +205,7 @@ export default function GameBoard({
         </div>
 
         {/* Opponent Field */}
-        <div className="field-area opponent-field-area">
+        <div className="field-area opponent-field-area field-egyptian">
           <Field
             monsters={opponent.field?.monsters || []}
             spells={opponent.field?.spells || []}
@@ -213,7 +228,7 @@ export default function GameBoard({
         </div>
 
         {/* Player Field */}
-        <div className="field-area player-field-area">
+        <div className="field-area player-field-area field-egyptian">
           <Field
             monsters={player.field?.monsters || []}
             spells={player.field?.spells || []}
@@ -228,18 +243,6 @@ export default function GameBoard({
           />
         </div>
 
-        {/* Player Hand */}
-        <div className="player-hand-area">
-          <Hand
-            cards={player.hand || []}
-            isOpponent={false}
-            selectable={canPlayCard}
-            onHover={handleCardHover}
-            onCardClick={handleCardClickFromHand}
-          />
-          <div className="hand-label">YOUR HAND ({player.hand?.length || 0})</div>
-        </div>
-
         {/* Bottom - Player Info */}
         <div className="bottom-bar">
           <LifePointsDisplay name={player.name} lp={player.lp} isPlayer={true} />
@@ -252,10 +255,32 @@ export default function GameBoard({
             <span className="grave-label">GRAVE</span>
           </div>
         </div>
+
+        {/* Player Hand - kept at the very bottom like Power of Chaos */}
+        <div className="player-hand-area">
+          <Hand
+            cards={player.hand || []}
+            isOpponent={false}
+            selectable={canPlayCard}
+            onHover={handleCardHover}
+            onCardClick={handleCardClickFromHand}
+          />
+          <div className="hand-label">YOUR HAND ({player.hand?.length || 0})</div>
+        </div>
       </div>
 
       {/* Game Overlay */}
       {overlay && <GameOverlay message={overlay.message} subMessage={overlay.subMessage} />}
+
+      {confirmEndTurn && (
+        <div className="command-overlay">
+          <div className="command-window">
+            <div className="command-title">END TURN?</div>
+            <button className="command-option" onClick={() => { setConfirmEndTurn(false); onEndTurn() }}>YES</button>
+            <button className="command-option" onClick={() => setConfirmEndTurn(false)}>NO</button>
+          </div>
+        </div>
+      )}
 
       {/* Play Card Modal */}
       {showPlayModal && pendingPlayCard && (

@@ -189,17 +189,6 @@ export default function App() {
     }
   }, [])
 
-  // Auto-advance from Standby Phase to Main Phase 1 after 3 seconds
-  useEffect(() => {
-    let timer;
-    if (state.isYourTurn && state.phase === 'Standby') {
-      timer = setTimeout(() => {
-        emit('end-phase', {})
-      }, 3000);
-    }
-    return () => clearTimeout(timer);
-  }, [state.isYourTurn, state.phase, emit])
-
   const handleStartGame = useCallback((config) => {
     setRoomInfo(config)
     if (config.mode === 'yugi') {
@@ -226,7 +215,7 @@ export default function App() {
         emit('set-spell-trap', { cardId: card.cardId, faceDown: true })
       }
     } else if (actionType === 'activate') {
-      emit('play-card', { cardId: card.cardId, position: 'open' })
+      emit('set-spell-trap', { cardId: card.cardId, faceDown: false })
     } else if (actionType === 'hand') {
       // Direct from hand - should not happen since GameBoard shows modal first
       emit('play-card', { cardId: card?.cardId || card })
@@ -236,6 +225,11 @@ export default function App() {
   const handleSelectMonster = useCallback((index) => {
     console.log('[handleSelectMonster] index=', index, 'rawPhase=', state.rawPhase, 'isYourTurn=', state.isYourTurn)
     console.log('[handleSelectMonster] gameState=', JSON.stringify(state.gameState)?.slice(0, 500))
+    if (index === null) {
+      dispatch({ type: 'SELECT_MONSTER', payload: null })
+      dispatch({ type: 'SET_ATTACK_TARGETS', payload: [] })
+      return
+    }
     if (state.rawPhase === 'battle' && state.isYourTurn) {
       dispatch({ type: 'SELECT_MONSTER', payload: index })
       const targets = []
@@ -254,9 +248,7 @@ export default function App() {
     if (state.selectedMonster !== null) {
       // Convert index to cardId for server - use findIndex to handle sparse arrays
       const myMonsters = state.gameState?.player?.field?.monsters || [];
-      const myMonstersList = myMonsters.filter(m => m)
-      // Find the actual card by matching cardId, not array index
-      const attacker = myMonstersList[state.selectedMonster]
+      const attacker = myMonsters[state.selectedMonster]
       const attackerId = attacker?.cardId
       
       // The targetIndex is a raw zone index from the sparse opponentMonsters array
