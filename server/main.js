@@ -90,6 +90,27 @@ function setAITimeout(roomCode, fn, delayMs) {
   aiTimeouts.set(roomCode, timeout);
 }
 
+function finishAITurnIfNeeded(roomState) {
+  if (!roomState || !roomState.yugiMode || !roomState.gameState) return;
+  const gs = roomState.gameState;
+  gs.playerLocked = false;
+
+  // executeYugiTurn intentionally plays through Yugi's End Phase, but does not
+  // switch control back to the human. Advance once from Yugi's end phase to the
+  // player's draw phase. Do not overwrite currentPlayer first, or advancePhase()
+  // will switch back to Yugi and leave the duel stuck on the AI draw phase.
+  if (gs.currentPlayer === 'player2' && gs.phase === 'end') {
+    advancePhase(gs);
+    io.to(roomState.code).emit('turn-start', {
+      player: gs.currentPlayer,
+      phase: gs.phase,
+      turn: gs.turn
+    });
+  }
+
+  io.to(roomState.code).emit('game-state', { state: serialize(gs, null) });
+}
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log(`[Socket] Connected: ${socket.id}`);
@@ -132,7 +153,7 @@ io.on('connection', (socket) => {
             if (room.state && room.state.gameState && room.state.gameState.started) {
               executeYugiTurn(room.state.gameState, io, room.roomCode, () => {
                 io.to(room.roomCode).emit('game-state', { state: serialize(room.state.gameState, null) });
-              });
+              }).then(() => finishAITurnIfNeeded(room.state)).catch(() => {});
             }
           }, 800);
         }
@@ -583,9 +604,7 @@ io.on('connection', (socket) => {
               io.to(room.code).emit('yugi-action', { action });
               io.to(room.code).emit('game-state', { state: serialize(gs, null) });
             }).then(() => {
-              if (room && room.gameState) {
-                room.gameState.playerLocked = false;
-              }
+              finishAITurnIfNeeded(room);
             }).catch(() => {});
           }
         }, 600);
@@ -650,20 +669,7 @@ io.on('connection', (socket) => {
               io.to(room.code).emit('yugi-action', { action });
               io.to(room.code).emit('game-state', { state: serialize(gs, null) });
             }).then(() => {
-              if (room && room.gameState) {
-                room.gameState.playerLocked = false;
-                room.gameState.currentPlayer = 'player1';
-                // In yugiMode, AI finished end phase — force advance to start new turn for player1
-                if (room.yugiMode) {
-                  advancePhase(room.gameState);
-                }
-                io.to(room.code).emit('turn-start', {
-                  player: 'player1',
-                  phase: gs.phase,
-                  turn: gs.turn
-                });
-                io.to(room.code).emit('game-state', { state: serialize(gs, null) });
-              }
+              finishAITurnIfNeeded(room);
             }).catch(() => {});
           }
         }, 600);
