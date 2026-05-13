@@ -235,6 +235,7 @@ export default function App() {
 
   const handleSelectMonster = useCallback((index) => {
     console.log('[handleSelectMonster] index=', index, 'rawPhase=', state.rawPhase, 'isYourTurn=', state.isYourTurn)
+    console.log('[handleSelectMonster] gameState=', JSON.stringify(state.gameState)?.slice(0, 500))
     if (state.rawPhase === 'battle' && state.isYourTurn) {
       dispatch({ type: 'SELECT_MONSTER', payload: index })
       const targets = []
@@ -249,17 +250,23 @@ export default function App() {
   }, [state.rawPhase, state.isYourTurn, state.gameState?.opponent])
 
   const handleAttackTarget = useCallback((targetIndex) => {
+    console.log('[handleAttackTarget] targetIndex=', targetIndex, 'selectedMonster=', state.selectedMonster);
     if (state.selectedMonster !== null) {
-      // Convert index to cardId for server
-      const myMonsters = state.gameState?.player?.field?.monsters || []
+      // Convert index to cardId for server - use findIndex to handle sparse arrays
+      const myMonsters = state.gameState?.player?.field?.monsters || [];
       const myMonstersList = myMonsters.filter(m => m)
+      // Find the actual card by matching cardId, not array index
       const attacker = myMonstersList[state.selectedMonster]
       const attackerId = attacker?.cardId
-
+      
+      // The targetIndex is a raw zone index from the sparse opponentMonsters array
+      // We need to convert it to a cardId
       const oppMonsters = state.gameState?.opponent?.field?.monsters || []
-      const oppMonstersList = oppMonsters.filter(m => m)
-      const targetId = oppMonstersList[targetIndex]?.cardId
-
+      const target = oppMonsters[targetIndex]
+      const targetId = target?.cardId
+      
+      console.log('[handleAttackTarget] attackerId=', attackerId, 'targetId=', targetId);
+      
       if (attackerId && targetId) {
         emit('attack', { attackerId, targetId })
       }
