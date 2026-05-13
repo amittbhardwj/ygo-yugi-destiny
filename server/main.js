@@ -766,17 +766,33 @@ io.on('connection', (socket) => {
   });
 });
 
+
+const EXODIA_ANIMATION_PIECES = [
+  { id: 'm102', name: 'Right Arm of the Forbidden One', imgUrl: getCardImageUrl('m102') },
+  { id: 'm104', name: 'Right Leg of the Forbidden One', imgUrl: getCardImageUrl('m104') },
+  { id: 'm101', name: 'Exodia the Forbidden One', imgUrl: getCardImageUrl('m101') },
+  { id: 'm105', name: 'Left Leg of the Forbidden One', imgUrl: getCardImageUrl('m105') },
+  { id: 'm103', name: 'Left Arm of the Forbidden One', imgUrl: getCardImageUrl('m103') },
+];
+
+function buildGameOverPayload(gs, winnerKey, reason) {
+  const isExodia = reason === 'Exodia the Forbidden One';
+  return {
+    winnerKey,
+    winner: gs.players[winnerKey]?.name,
+    reason,
+    isExodia,
+    pieces: isExodia ? EXODIA_ANIMATION_PIECES : [],
+  };
+}
+
 // --- Win Condition Checker ---
 function checkWinCondition(gs, roomCode, io) {
   if (!gs || !gs.started) return !!gs?.winner;
 
   if (gs.winner) {
     const winnerKey = gs.winner;
-    io.to(roomCode).emit('game-over', {
-      winnerKey,
-      winner: gs.players[winnerKey]?.name,
-      reason: gs.winReason || 'Win condition met'
-    });
+    io.to(roomCode).emit('game-over', buildGameOverPayload(gs, winnerKey, gs.winReason || 'Win condition met'));
     gs.started = false;
     clearAITimeout(roomCode);
     closeRoom(roomCode);
@@ -790,11 +806,7 @@ function checkWinCondition(gs, roomCode, io) {
       gs.winner = winnerKey;
       gs.winReason = 'LP reached 0';
       gs.log.push(`${gs.players[key].name} ran out of LP! ${gs.players[winnerKey].name} wins!`);
-      io.to(roomCode).emit('game-over', {
-        winnerKey,
-        winner: gs.players[winnerKey].name,
-        reason: gs.winReason
-      });
+      io.to(roomCode).emit('game-over', buildGameOverPayload(gs, winnerKey, gs.winReason));
       gs.started = false;
       clearAITimeout(roomCode);
       closeRoom(roomCode);
@@ -811,11 +823,7 @@ function checkWinCondition(gs, roomCode, io) {
       gs.winner = winnerKey;
       gs.winReason = 'No cards to draw';
       gs.log.push(`${gs.players[key].name} cannot draw a card! ${gs.players[winnerKey].name} wins!`);
-      io.to(roomCode).emit('game-over', {
-        winnerKey,
-        winner: gs.players[winnerKey].name,
-        reason: gs.winReason
-      });
+      io.to(roomCode).emit('game-over', buildGameOverPayload(gs, winnerKey, gs.winReason));
       gs.started = false;
       clearAITimeout(roomCode);
       closeRoom(roomCode);

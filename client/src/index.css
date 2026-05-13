@@ -1403,3 +1403,188 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   60%, 85% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-8px); }
 }
+
+/* Exodia win animation - Power of Chaos inspired cut-in */
+.exodia-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(79, 45, 5, 0.95), rgba(2, 1, 8, 0.98) 58%, #000 100%);
+  animation: exodiaOverlayFade 5.4s ease-in-out forwards;
+}
+
+.exodia-storm {
+  position: absolute;
+  inset: -20%;
+  background:
+    conic-gradient(from 0deg, transparent, rgba(245, 197, 66, 0.16), transparent, rgba(160, 23, 23, 0.18), transparent),
+    repeating-radial-gradient(circle, rgba(255, 220, 89, 0.08) 0 2px, transparent 2px 18px);
+  animation: exodiaStormSpin 4.6s linear infinite, exodiaStormPulse 1.1s ease-in-out infinite;
+}
+
+.exodia-rune-ring {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 197, 66, 0.32);
+  color: rgba(245, 197, 66, 0.16);
+  font-size: 23rem;
+  line-height: 520px;
+  text-align: center;
+  filter: drop-shadow(0 0 28px rgba(245, 197, 66, 0.55));
+  animation: exodiaRune 5.4s ease-in-out forwards;
+}
+
+.exodia-card-fan {
+  position: relative;
+  width: 720px;
+  height: 430px;
+  z-index: 3;
+  animation: exodiaFanFlash 5.4s ease-in-out forwards;
+}
+
+.exodia-piece {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 122px;
+  height: 170px;
+  margin-left: -61px;
+  margin-top: -85px;
+  border: 3px solid #f5c542;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2d1708, #8b5a1d);
+  box-shadow: 0 0 18px rgba(245, 197, 66, 0.75), 0 12px 24px rgba(0,0,0,0.65);
+  opacity: 0;
+}
+
+.exodia-piece img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.exodia-piece span {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: #f5c542;
+  font-weight: 800;
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+.exodia-piece-0 { animation: exodiaPiece0 5.4s cubic-bezier(.2,.8,.2,1) forwards; }
+.exodia-piece-1 { animation: exodiaPiece1 5.4s cubic-bezier(.2,.8,.2,1) forwards; }
+.exodia-piece-2 { animation: exodiaPiece2 5.4s cubic-bezier(.2,.8,.2,1) forwards; }
+.exodia-piece-3 { animation: exodiaPiece3 5.4s cubic-bezier(.2,.8,.2,1) forwards; }
+.exodia-piece-4 { animation: exodiaPiece4 5.4s cubic-bezier(.2,.8,.2,1) forwards; }
+
+.exodia-silhouette {
+  position: absolute;
+  z-index: 2;
+  width: 360px;
+  height: 430px;
+  opacity: 0;
+  filter: drop-shadow(0 0 42px #ffd95a);
+  animation: exodiaSilhouetteRise 5.4s ease-in-out forwards;
+}
+
+.exodia-head, .exodia-torso, .exodia-arm {
+  position: absolute;
+  background: linear-gradient(180deg, #f8d66d, #9b5c12 55%, #321704);
+  box-shadow: inset 0 0 24px rgba(255,255,255,.28), 0 0 30px rgba(255,217,90,.55);
+}
+
+.exodia-head { left: 132px; top: 20px; width: 96px; height: 86px; clip-path: polygon(50% 0, 92% 18%, 78% 100%, 22% 100%, 8% 18%); }
+.exodia-torso { left: 105px; top: 105px; width: 150px; height: 210px; clip-path: polygon(18% 0, 82% 0, 100% 60%, 68% 100%, 32% 100%, 0 60%); }
+.exodia-arm { top: 122px; width: 78px; height: 220px; }
+.exodia-arm-left { left: 15px; transform: rotate(24deg); clip-path: polygon(30% 0, 100% 8%, 70% 100%, 0 94%); }
+.exodia-arm-right { right: 15px; transform: rotate(-24deg); clip-path: polygon(0 8%, 70% 0, 100% 94%, 30% 100%); }
+
+.exodia-title,
+.exodia-subtitle,
+.exodia-obliterate {
+  position: absolute;
+  z-index: 5;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.exodia-title {
+  top: 8%;
+  font-size: clamp(3rem, 9vw, 8rem);
+  color: #ffd95a;
+  text-shadow: 0 0 14px #ffd95a, 0 0 42px #9b1c1c, 4px 4px 0 #210700;
+  opacity: 0;
+  animation: exodiaTitle 5.4s ease-in-out forwards;
+}
+
+.exodia-subtitle {
+  bottom: 18%;
+  font-size: clamp(0.9rem, 2vw, 1.45rem);
+  color: #fff1a8;
+  text-shadow: 0 0 12px #f5c542, 2px 2px 0 #000;
+  opacity: 0;
+  animation: exodiaSubtitle 5.4s ease-in-out forwards;
+}
+
+.exodia-obliterate {
+  bottom: 6%;
+  font-size: clamp(2.4rem, 8vw, 7rem);
+  color: #ff2f1f;
+  -webkit-text-stroke: 2px #ffd95a;
+  text-shadow: 0 0 20px #ff2f1f, 0 0 46px #ffd95a, 5px 5px 0 #110000;
+  opacity: 0;
+  animation: exodiaObliterate 5.4s ease-in-out forwards;
+}
+
+@keyframes exodiaOverlayFade {
+  0% { opacity: 0; }
+  6%, 90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes exodiaStormSpin { to { transform: rotate(360deg); } }
+@keyframes exodiaStormPulse { 50% { filter: brightness(1.85) saturate(1.5); } }
+@keyframes exodiaRune {
+  0% { opacity: 0; transform: scale(.25) rotate(0deg); }
+  20%, 76% { opacity: 1; transform: scale(1) rotate(110deg); }
+  100% { opacity: 0; transform: scale(1.35) rotate(180deg); }
+}
+@keyframes exodiaFanFlash {
+  0%, 10% { filter: brightness(1); }
+  52%, 62% { filter: brightness(2.4) saturate(1.7); }
+  100% { filter: brightness(.9); }
+}
+
+@keyframes exodiaPiece0 { 0%{opacity:0;transform:scale(.2) rotate(0)} 16%,70%{opacity:1;transform:translate(-260px,15px) rotate(-26deg) scale(1)} 100%{opacity:.18;transform:translate(-260px,15px) rotate(-26deg) scale(.92)} }
+@keyframes exodiaPiece1 { 0%,7%{opacity:0;transform:scale(.2) rotate(0)} 22%,70%{opacity:1;transform:translate(-130px,95px) rotate(-12deg) scale(1)} 100%{opacity:.18;transform:translate(-130px,95px) rotate(-12deg) scale(.92)} }
+@keyframes exodiaPiece2 { 0%,14%{opacity:0;transform:scale(.2) rotate(0)} 28%,70%{opacity:1;transform:translate(0,-8px) rotate(0) scale(1.08)} 100%{opacity:.2;transform:translate(0,-8px) rotate(0) scale(.98)} }
+@keyframes exodiaPiece3 { 0%,21%{opacity:0;transform:scale(.2) rotate(0)} 34%,70%{opacity:1;transform:translate(130px,95px) rotate(12deg) scale(1)} 100%{opacity:.18;transform:translate(130px,95px) rotate(12deg) scale(.92)} }
+@keyframes exodiaPiece4 { 0%,28%{opacity:0;transform:scale(.2) rotate(0)} 40%,70%{opacity:1;transform:translate(260px,15px) rotate(26deg) scale(1)} 100%{opacity:.18;transform:translate(260px,15px) rotate(26deg) scale(.92)} }
+
+@keyframes exodiaSilhouetteRise {
+  0%, 38% { opacity: 0; transform: translateY(80px) scale(.45); }
+  55%, 84% { opacity: .96; transform: translateY(-22px) scale(1.08); }
+  100% { opacity: 0; transform: translateY(-10px) scale(1.22); }
+}
+@keyframes exodiaTitle { 0%,18%{opacity:0;transform:translateY(-40px) scale(.7)} 34%,86%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-20px) scale(1.1)} }
+@keyframes exodiaSubtitle { 0%,46%{opacity:0;transform:translateY(18px)} 58%,86%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(16px)} }
+@keyframes exodiaObliterate { 0%,60%{opacity:0;transform:scale(.25) rotate(-2deg)} 69%{opacity:1;transform:scale(1.32) rotate(1deg)} 74%,88%{opacity:1;transform:scale(1) rotate(0)} 100%{opacity:0;transform:scale(1.2)} }
+
+@media (max-width: 760px) {
+  .exodia-card-fan { width: 360px; transform: scale(.72); }
+  .exodia-rune-ring { width: 340px; height: 340px; line-height: 340px; font-size: 15rem; }
+}

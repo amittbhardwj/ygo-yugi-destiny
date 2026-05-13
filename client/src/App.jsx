@@ -77,9 +77,45 @@ function gameReducer(state, action) {
     case 'SET_COIN_FLIP':
       return { ...state, coinFlip: action.payload }
 
+    case 'SET_EXODIA_ANIMATION':
+      return { ...state, exodiaAnimation: action.payload }
+
+    case 'CLEAR_EXODIA_ANIMATION':
+      return { ...state, exodiaAnimation: null }
+
     default:
       return state
   }
+}
+
+
+function ExodiaAnimation({ animation }) {
+  if (!animation) return null
+  const pieces = animation.pieces || []
+  const winnerLabel = animation.winnerKey === 'player1' ? 'YOU HAVE ASSEMBLED' : 'YUGI HAS ASSEMBLED'
+
+  return (
+    <div className="exodia-overlay" key={animation.id}>
+      <div className="exodia-storm" />
+      <div className="exodia-rune-ring">𓂀</div>
+      <div className="exodia-card-fan">
+        {pieces.map((piece, index) => (
+          <div className={`exodia-piece exodia-piece-${index}`} key={piece.id}>
+            {piece.imgUrl ? <img src={piece.imgUrl} alt={piece.name} /> : <span>{piece.name}</span>}
+          </div>
+        ))}
+      </div>
+      <div className="exodia-silhouette">
+        <div className="exodia-head" />
+        <div className="exodia-torso" />
+        <div className="exodia-arm exodia-arm-left" />
+        <div className="exodia-arm exodia-arm-right" />
+      </div>
+      <div className="exodia-title">EXODIA</div>
+      <div className="exodia-subtitle">{winnerLabel} THE FORBIDDEN ONE</div>
+      <div className="exodia-obliterate">OBLITERATE!</div>
+    </div>
+  )
 }
 
 const initialState = {
@@ -90,6 +126,7 @@ const initialState = {
   selectedMonster: null,
   duelAnimation: null,
   coinFlip: null,
+  exodiaAnimation: null,
 }
 
 export default function App() {
@@ -201,7 +238,15 @@ export default function App() {
         break
         
       case 'game_over':
-        dispatch({ type: 'GAME_OVER', payload: data })
+        if (data?.isExodia) {
+          dispatch({ type: 'SET_EXODIA_ANIMATION', payload: { ...data, id: Date.now() } })
+          setTimeout(() => {
+            dispatch({ type: 'CLEAR_EXODIA_ANIMATION' })
+            dispatch({ type: 'GAME_OVER', payload: data })
+          }, 5400)
+        } else {
+          dispatch({ type: 'GAME_OVER', payload: data })
+        }
         break
         
       case 'error':
@@ -330,6 +375,7 @@ export default function App() {
     const didWin = state.winner?.winnerKey === 'player1'
     return (
       <div className="min-h-screen bg-ygo-dark flex items-center justify-center">
+        <ExodiaAnimation animation={state.exodiaAnimation} />
         <div className="text-center">
           <h1 className="text-4xl font-bold text-ygo-gold mb-4">
             {didWin ? 'VICTORY!' : 'DEFEAT'}
@@ -351,6 +397,7 @@ export default function App() {
 
   return (
     <div className="App">
+      <ExodiaAnimation animation={state.exodiaAnimation} />
       {screen === 'lobby' && (
         <Lobby
           onStartGame={handleStartGame}
