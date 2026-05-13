@@ -1116,3 +1116,172 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
 .opponent-hand-area { min-height: 82px; padding-top: 0; padding-bottom: 0; }
 .player-hand-area { min-height: 116px; padding-top: 2px; }
 .vs-divider { padding-top: 0; padding-bottom: 0; }
+
+/* Power of Chaos duel animations */
+.poc-card-attack-lunge {
+  animation: pocAttackLunge 820ms cubic-bezier(.22, .85, .28, 1) both;
+  z-index: 20 !important;
+}
+
+.poc-card-counterattack {
+  animation: pocCounterLunge 820ms cubic-bezier(.22, .85, .28, 1) both;
+  z-index: 20 !important;
+}
+
+.poc-card-hit {
+  animation: pocCardHit 760ms ease-out both;
+  z-index: 18 !important;
+}
+
+.poc-card-destroyed {
+  animation: pocCardDestroyed 1100ms ease-in both;
+  z-index: 19 !important;
+}
+
+@keyframes pocAttackLunge {
+  0% { transform: translateY(0) scale(1); filter: brightness(1); }
+  22% { transform: translateY(-20px) scale(1.1); filter: brightness(1.5) drop-shadow(0 0 12px #ffe76a); }
+  54% { transform: translateY(-145px) scale(1.22) rotate(-2deg); filter: brightness(1.8) drop-shadow(0 0 20px #fff2a3); }
+  74% { transform: translateY(-58px) scale(1.08); }
+  100% { transform: translateY(0) scale(1); filter: brightness(1); }
+}
+
+@keyframes pocCounterLunge {
+  0% { transform: translateY(0) scale(1); filter: brightness(1); }
+  24% { transform: translateY(20px) scale(1.1); filter: brightness(1.5) drop-shadow(0 0 12px #ff6a6a); }
+  56% { transform: translateY(145px) scale(1.22) rotate(2deg); filter: brightness(1.8) drop-shadow(0 0 20px #ffb3b3); }
+  100% { transform: translateY(0) scale(1); filter: brightness(1); }
+}
+
+@keyframes pocCardHit {
+  0%, 100% { transform: translateX(0); filter: brightness(1); }
+  15% { transform: translateX(-7px) rotate(-3deg); filter: brightness(3) saturate(.4); }
+  30% { transform: translateX(7px) rotate(3deg); }
+  45% { transform: translateX(-5px) rotate(-2deg); filter: brightness(2.2); }
+  62% { transform: translateX(4px) rotate(1deg); }
+}
+
+@keyframes pocCardDestroyed {
+  0% { opacity: 1; transform: scale(1); filter: brightness(1); }
+  28% { opacity: 1; transform: scale(1.18); filter: brightness(3) sepia(1) hue-rotate(330deg); }
+  58% { opacity: .72; transform: scale(.82) rotate(6deg); filter: brightness(1.8); }
+  100% { opacity: 0; transform: scale(.08) rotate(24deg); filter: brightness(0); }
+}
+
+.poc-attack-burst {
+  position: fixed;
+  left: 50%;
+  top: 49%;
+  transform: translate(-50%, -50%);
+  z-index: 205;
+  pointer-events: none;
+  width: 360px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pocBurstFade 1050ms ease-out both;
+}
+
+.poc-attack-burst::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle, rgba(255,255,255,.95) 0 7%, rgba(255,232,75,.78) 8% 18%, rgba(255,60,40,.46) 19% 31%, transparent 32%),
+    conic-gradient(from 15deg, transparent 0 7%, rgba(255,245,130,.65) 8% 11%, transparent 12% 18%, rgba(255,90,45,.55) 19% 23%, transparent 24% 100%);
+  filter: drop-shadow(0 0 24px rgba(255,226,68,.9));
+  animation: pocBurstSpin 1050ms ease-out both;
+}
+
+.poc-attack-burst span {
+  position: relative;
+  color: #fff4a2;
+  font: 900 28px/1 'Arial Black', Impact, sans-serif;
+  letter-spacing: 2px;
+  text-shadow: 3px 3px 0 #601000, -2px -2px 0 #000, 0 0 16px #ff2d00;
+  transform: skewX(-8deg);
+}
+
+.poc-attack-burst.direct-hit::before {
+  background:
+    radial-gradient(circle, rgba(255,255,255,.95) 0 8%, rgba(92,190,255,.75) 9% 20%, rgba(255,236,74,.45) 21% 34%, transparent 35%),
+    conic-gradient(from 0deg, transparent 0 6%, rgba(98,204,255,.65) 7% 10%, transparent 11% 16%, rgba(255,245,130,.55) 17% 20%, transparent 21% 100%);
+}
+
+@keyframes pocBurstSpin {
+  0% { transform: scale(.2) rotate(0deg); opacity: 0; }
+  18% { transform: scale(1.15) rotate(28deg); opacity: 1; }
+  62% { transform: scale(1) rotate(70deg); opacity: .82; }
+  100% { transform: scale(1.45) rotate(120deg); opacity: 0; }
+}
+
+@keyframes pocBurstFade {
+  0% { opacity: 0; }
+  10%, 68% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.lp-wing-frame { position: relative; }
+.lp-damage-flash .lp-value {
+  animation: pocLpDamage 820ms ease-out both;
+}
+
+.lp-floating-damage {
+  position: absolute;
+  left: 62px;
+  top: -18px;
+  color: #ff1b1b;
+  font: 900 24px/1 'Arial Black', Impact, sans-serif;
+  text-shadow: 2px 2px 0 #fff, -1px -1px 0 #fff, 0 0 10px #ff0000;
+  pointer-events: none;
+  animation: pocDamageNumber 1050ms ease-out forwards;
+}
+
+@keyframes pocLpDamage {
+  0%, 100% { color: inherit; transform: scale(1); filter: brightness(1); }
+  18% { color: #fff; transform: scale(1.22); filter: brightness(3); }
+  40% { color: #ff2828; transform: scale(1.08); }
+}
+
+@keyframes pocDamageNumber {
+  0% { opacity: 0; transform: translateY(12px) scale(.7); }
+  18% { opacity: 1; transform: translateY(0) scale(1.15); }
+  82% { opacity: 1; transform: translateY(-38px) scale(1); }
+  100% { opacity: 0; transform: translateY(-62px) scale(.78); }
+}
+
+.poc-command-banner {
+  position: fixed;
+  left: 50%;
+  top: 18%;
+  transform: translateX(-50%);
+  z-index: 204;
+  pointer-events: none;
+  padding: 12px 34px;
+  min-width: 280px;
+  text-align: center;
+  color: #fff6bf;
+  background: linear-gradient(180deg, rgba(88,57,24,.96), rgba(31,18,8,.96));
+  border: 4px ridge #d8b85d;
+  box-shadow: 0 8px 28px rgba(0,0,0,.7), inset 0 0 18px rgba(255,225,120,.18);
+  font: 900 16px/1.25 Georgia, serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  animation: pocCommandBanner 900ms ease-out both;
+}
+
+@keyframes pocCommandBanner {
+  0% { opacity: 0; transform: translate(-50%, -18px) scale(.92); }
+  18%, 76% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -10px) scale(.98); }
+}
+
+.phase-active {
+  animation: pocPhasePulse 1250ms ease-in-out infinite;
+}
+
+@keyframes pocPhasePulse {
+  0%, 100% { box-shadow: 0 0 15px 3px rgba(73,149,255,.72) !important; }
+  50% { box-shadow: 0 0 24px 7px rgba(255,232,93,.95) !important; }
+}

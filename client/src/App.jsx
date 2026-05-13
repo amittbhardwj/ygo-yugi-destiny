@@ -65,6 +65,12 @@ function gameReducer(state, action) {
     case 'CLEAR_OVERLAY':
       return { ...state, overlayMessage: null }
 
+    case 'SET_DUEL_ANIMATION':
+      return { ...state, duelAnimation: action.payload }
+
+    case 'CLEAR_DUEL_ANIMATION':
+      return { ...state, duelAnimation: null }
+
     default:
       return state
   }
@@ -76,6 +82,7 @@ const initialState = {
   rawPhase: 'draw',
   isYourTurn: false,
   selectedMonster: null,
+  duelAnimation: null,
 }
 
 export default function App() {
@@ -154,6 +161,20 @@ export default function App() {
         
       case 'card_played':
         dispatch({ type: 'CARD_PLAYED', payload: data })
+        break
+
+      case 'action_result':
+        if (data?.success) {
+          dispatch({ type: 'SET_DUEL_ANIMATION', payload: { kind: 'command', message: data.message, id: Date.now() } })
+          setTimeout(() => dispatch({ type: 'CLEAR_DUEL_ANIMATION' }), 900)
+        }
+        break
+
+      case 'attack_result':
+        dispatch({ type: 'SET_DUEL_ANIMATION', payload: { kind: 'attack', ...data, id: Date.now() } })
+        dispatch({ type: 'SELECT_MONSTER', payload: null })
+        dispatch({ type: 'SET_ATTACK_TARGETS', payload: [] })
+        setTimeout(() => dispatch({ type: 'CLEAR_DUEL_ANIMATION' }), 1300)
         break
         
       case 'attack_executed':
@@ -338,6 +359,7 @@ export default function App() {
           onSurrender={handleSurrender}
           emit={emit}
           overlayMessage={state.overlayMessage}
+          duelAnimation={state.duelAnimation}
         />
       )}
     </div>

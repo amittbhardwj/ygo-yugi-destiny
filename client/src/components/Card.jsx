@@ -22,7 +22,7 @@ const SIZE_CONFIG = {
   large: { width: 140, height: 196 },
 }
 
-export default function Card({ card, faceDown = false, selected = false, selectable = false, isAttackTarget = false, onClick, onHover, size = 'field' }) {
+export default function Card({ card, faceDown = false, selected = false, selectable = false, isAttackTarget = false, animationClass = '', onClick, onHover, size = 'field' }) {
   const [isHovered, setIsHovered] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
 
@@ -53,7 +53,7 @@ export default function Card({ card, faceDown = false, selected = false, selecta
     if (selected) extra = 'scale-105 shadow-lg shadow-yellow-400/50'
     else if (selectable) extra = 'card-selectable'
     if (isAttackTarget) extra = 'card-attack-target'
-    return `${base} ${border} ${extra}`
+    return `${base} ${border} ${extra} ${animationClass}`
   }
 
   const renderCardFace = () => {

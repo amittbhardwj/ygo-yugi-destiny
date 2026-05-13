@@ -28,14 +28,15 @@ function normalizePhase(phase) {
   return SERVER_PHASE_MAP[phase] || phase
 }
 
-function LifePointsDisplay({ name, lp, isPlayer }) {
+function LifePointsDisplay({ name, lp, isPlayer, damage = null }) {
   return (
-    <div className={`lp-wing-frame ${isPlayer ? 'lp-player' : 'lp-opponent'}`}>
+    <div className={`lp-wing-frame ${isPlayer ? 'lp-player' : 'lp-opponent'} ${damage ? 'lp-damage-flash' : ''}`}>
       <div className="lp-content">
         <span className="lp-name">{name}</span>
         <span className="lp-value">{lp?.toLocaleString() || 0}</span>
         <span className="lp-label">LP</span>
       </div>
+      {damage ? <span className="lp-floating-damage">-{damage}</span> : null}
     </div>
   )
 }
@@ -91,6 +92,7 @@ export default function GameBoard({
   onEndTurn,
   emit,
   overlayMessage = null,
+  duelAnimation = null,
 }) {
   const [hoveredCard, setHoveredCard] = useState(null)
   const [showPlayModal, setShowPlayModal] = useState(false)
@@ -104,6 +106,8 @@ export default function GameBoard({
 
   const { player, opponent } = gameState
   const normalizedPhase = normalizePhase(currentPhase)
+  const isAttackAnimation = duelAnimation?.kind === 'attack'
+  const opponentDamage = isAttackAnimation && duelAnimation.damage > 0 ? duelAnimation.damage : null
 
   const handleCardHover = useCallback((card) => {
     setHoveredCard(card)
@@ -187,7 +191,7 @@ export default function GameBoard({
       <div className="main-field">
         {/* Top - Opponent Info */}
         <div className="top-bar">
-          <LifePointsDisplay name={opponent.name} lp={opponent.lp} isPlayer={false} />
+          <LifePointsDisplay name={opponent.name} lp={opponent.lp} isPlayer={false} damage={opponentDamage} />
           <div className="deck-info">
             <span className="deck-count">{opponent.deckCount || 0}</span>
             <span className="deck-label">DECK</span>
@@ -217,6 +221,7 @@ export default function GameBoard({
               }
             }}
             onCardHover={handleCardHover}
+            duelAnimation={duelAnimation}
           />
         </div>
 
@@ -240,6 +245,7 @@ export default function GameBoard({
             onSpellClick={() => {}}
             onEmptySlotClick={() => {}}
             onCardHover={handleCardHover}
+            duelAnimation={duelAnimation}
           />
         </div>
 
@@ -272,6 +278,16 @@ export default function GameBoard({
       {/* Game Overlay */}
       {overlay && <GameOverlay message={overlay.message} subMessage={overlay.subMessage} />}
 
+      {duelAnimation?.kind === 'command' && (
+        <div className="poc-command-banner" key={duelAnimation.id}>{duelAnimation.message}</div>
+      )}
+
+      {duelAnimation?.kind === 'attack' && (
+        <div className={`poc-attack-burst ${duelAnimation.targetId ? 'with-target' : 'direct-hit'}`} key={duelAnimation.id}>
+          <span>{duelAnimation.targetId ? 'ATTACK!' : 'DIRECT ATTACK!'}</span>
+        </div>
+      )}
+
       {confirmEndTurn && (
         <div className="command-overlay">
           <div className="command-window">
@@ -287,7 +303,8 @@ export default function GameBoard({
         <PlayCardModal
           card={pendingPlayCard}
           onSummon={() => {
-            const action = pendingPlayCard.type === 'Spell' || pendingPlayCard.type === 'Trap'
+            const cardType = (pendingPlayCard.type || '').toLowerCase()
+            const action = cardType === 'spell' || cardType === 'trap'
               ? 'activate'
               : 'summon'
             onPlayCard(pendingPlayCard, action)

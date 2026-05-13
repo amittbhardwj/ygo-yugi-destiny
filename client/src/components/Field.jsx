@@ -11,11 +11,19 @@ export default function Field({
   attackTargets = [],
   selectable = false,
   onCardHover,
+  duelAnimation = null,
 }) {
   const renderSlot = (card, index, type) => {
     const isSelected = selectedMonster === index
     const isTarget = attackTargets.includes(index)
     const zoneClass = type === 'monster' ? 'monster-zone' : 'spell-zone'
+    const animationClass = duelAnimation?.kind === 'attack' && card
+      ? [
+          duelAnimation.attackerId === card.cardId ? (isOpponent ? 'poc-card-counterattack' : 'poc-card-attack-lunge') : '',
+          duelAnimation.targetId === card.cardId ? 'poc-card-hit' : '',
+          duelAnimation.destroyed?.includes(card.cardId) ? 'poc-card-destroyed' : '',
+        ].filter(Boolean).join(' ')
+      : ''
 
     if (!card) {
       return (
@@ -37,6 +45,7 @@ export default function Field({
         selected={isSelected}
         selectable={selectable && !isOpponent}
         isAttackTarget={isTarget}
+        animationClass={animationClass}
         onClick={() => {
           if (type === 'monster') {
             onMonsterClick && onMonsterClick(card, index)
