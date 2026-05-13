@@ -233,6 +233,7 @@ export default function App() {
   }, [emit])
 
   const handleSelectMonster = useCallback((index) => {
+    console.log('[handleSelectMonster] index=', index, 'rawPhase=', state.rawPhase, 'isYourTurn=', state.isYourTurn)
     if (state.rawPhase === 'battle' && state.isYourTurn) {
       dispatch({ type: 'SELECT_MONSTER', payload: index })
       const targets = []
