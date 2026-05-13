@@ -262,8 +262,8 @@ function serialize(state, forSocketId) {
 
   const serializePlayer = (key, isOwner) => {
     const player = state.players[key];
+    // opponentKey is the OTHER player (not the one being serialized)
     const opponentKey = key === 'player1' ? 'player2' : 'player1';
-    const opponent = state.players[opponentKey];
 
     return {
       name: player.name,
@@ -275,13 +275,10 @@ function serialize(state, forSocketId) {
         monsters: player.field.monsters.map(m => ({
           ...m,
           imgUrl: getCardImageUrl(m.cardId),
-          // Hide face-down cards that belong to opponent
-          faceDown: isOwner ? m.faceDown : (opponent?.id === forSocketId ? m.faceDown : m.faceDown),
         })),
         spells: player.field.spells.map(s => ({
           ...s,
           imgUrl: getCardImageUrl(s.cardId),
-          faceDown: isOwner ? s.faceDown : s.faceDown,
         })),
       },
       grave: player.grave,
