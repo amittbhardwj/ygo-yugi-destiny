@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+import CARDS from './cards.js';
+import { getCardImageUrl } from './cardImages.js';
 import { createGameState, drawCard, advancePhase, serialize, canAttack, executeAttack, directAttack, summonMonster, setSpellTrap } from './gameState.js';
 import { resolveSpellEffect, resolveTrapEffect } from './rules.js';
 import { createRoom, joinRoom, getRoomBySocket, broadcastToRoom, broadcastToOpponent, getGameState, closeRoom } from './rooms.js';
@@ -61,6 +63,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// All cards are unlocked for Deck Construction.
+app.get('/api/cards', (req, res) => {
+  res.json({ cards: CARDS.map(card => ({ ...card, imgUrl: getCardImageUrl(card.id) })) });
+});
+
 // Serve index for all other routes (SPA)
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, '../client/dist/index.html'));
@@ -88,7 +95,7 @@ io.on('connection', (socket) => {
   console.log(`[Socket] Connected: ${socket.id}`);
 
   // --- Create Room ---
-  socket.on('play-vs-ai', ({ playerName }) => {
+  socket.on('play-vs-ai', ({ playerName, deckIds }) => {
     try {
       if (!playerName) {
         socket.emit('error', { message: 'playerName required' });
@@ -105,12 +112,17 @@ io.on('connection', (socket) => {
       // Auto-start game for AI mode - player1 is ready when they click
       room.state.players.player1.ready = true;
       if (room.state.players.player1?.ready && room.state.players.player2?.ready) {
-        const gs = createGameState(room.state.players.player1.name, room.state.players.player2.name);
+        const coinSide = Math.random() < 0.5 ? 'heads' : 'tails';
+        const firstPlayer = coinSide === 'heads' ? 'player1' : 'player2';
+        const gs = createGameState(room.state.players.player1.name, room.state.players.player2.name, {
+          player1DeckIds: deckIds,
+          firstPlayer,
+          coinFlip: { side: coinSide, winner: firstPlayer },
+        });
         gs.started = true;
         gs.players.player1.id = socket.id; // Store socketId so playerKey detection works in all handlers
-        gs.currentPlayer = 'player1';
-        gs.phase = 'standby'; // Skip draw phase auto-advance for player1
         room.state.gameState = gs;
+        io.to(room.roomCode).emit('coin-flip', { side: coinSide, winner: firstPlayer });
         io.to(room.roomCode).emit('turn-start', { player: gs.currentPlayer, phase: gs.phase, turn: gs.turn });
         io.to(room.roomCode).emit('game-state', { state: serialize(gs, null) });
         console.log(`[Game] Started (AI mode): ${room.roomCode}`);

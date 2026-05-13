@@ -37,6 +37,7 @@ export function useSocket(onGameEvent, onConnectionChange) {
     const eventMap = {
       'game-state': 'game_state',
       'turn-start': 'turn_start',
+      'coin-flip': 'coin_flip',
       'phase-change': 'phase_change',
       'card-played': 'card_played',
       'attack-executed': 'attack_executed',

@@ -288,6 +288,15 @@ export default function GameBoard({
         </div>
       )}
 
+      {duelAnimation?.kind === 'coin' && (
+        <div className="poc-coin-overlay" key={duelAnimation.id}>
+          <div className={`poc-coin ${duelAnimation.side === 'heads' ? 'heads' : 'tails'}`} />
+          <div className="poc-coin-result">
+            {duelAnimation.side?.toUpperCase()} — {duelAnimation.winner === 'player1' ? 'YOU GO FIRST' : 'YUGI GOES FIRST'}
+          </div>
+        </div>
+      )}
+
       {confirmEndTurn && (
         <div className="command-overlay">
           <div className="command-window">

@@ -71,6 +71,9 @@ function gameReducer(state, action) {
     case 'CLEAR_DUEL_ANIMATION':
       return { ...state, duelAnimation: null }
 
+    case 'SET_COIN_FLIP':
+      return { ...state, coinFlip: action.payload }
+
     default:
       return state
   }
@@ -83,6 +86,7 @@ const initialState = {
   isYourTurn: false,
   selectedMonster: null,
   duelAnimation: null,
+  coinFlip: null,
 }
 
 export default function App() {
@@ -131,6 +135,12 @@ export default function App() {
         dispatch({ type: 'SET_RAW_PHASE', payload: data.state?.phase || 'draw' })
         break
         
+      case 'coin_flip':
+        dispatch({ type: 'SET_COIN_FLIP', payload: data })
+        dispatch({ type: 'SET_DUEL_ANIMATION', payload: { kind: 'coin', ...data, id: Date.now() } })
+        setTimeout(() => dispatch({ type: 'CLEAR_DUEL_ANIMATION' }), 2200)
+        break
+
       case 'turn_start':
         // Map server events from useSocket
         console.log('[HGE] turn_start:', JSON.stringify(data))
@@ -213,7 +223,7 @@ export default function App() {
   const handleStartGame = useCallback((config) => {
     setRoomInfo(config)
     if (config.mode === 'yugi') {
-      emit('play-vs-ai', { playerName: config.playerName })
+      emit('play-vs-ai', { playerName: config.playerName, deckIds: config.deckIds })
     } else if (config.mode === 'online') {
       if (config.action === 'create') {
         emit('create-room', { playerName: config.playerName, roomCode: config.roomCode })

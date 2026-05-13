@@ -31,10 +31,10 @@ function createPlayerState(name, socketId = null) {
   };
 }
 
-function createGameState(player1Name, player2Name) {
-  // Create decks (40 cards each - simplified starter decks)
-  const p1Deck = shuffleDeck(generateDeck());
-  const p2Deck = shuffleDeck(generateDeck());
+function createGameState(player1Name, player2Name, options = {}) {
+  const firstPlayer = options.firstPlayer === 'player2' ? 'player2' : 'player1';
+  const p1Deck = shuffleDeck(buildDeckFromIds(options.player1DeckIds) || generateDeck());
+  const p2Deck = shuffleDeck(buildDeckFromIds(options.player2DeckIds) || generateDeck());
 
   const state = {
     players: {
@@ -42,12 +42,13 @@ function createGameState(player1Name, player2Name) {
       player2: createPlayerState(player2Name),
     },
     turn: 1,
-    currentPlayer: 'player1',
+    currentPlayer: firstPlayer,
     phase: 'draw',
     winner: null,
     log: [],
     started: false,
     playerLocked: false,  // Prevents AI from firing during player actions
+    coinFlip: options.coinFlip || null,
   };
 
   state.players.player1.deck = p1Deck;
@@ -59,33 +60,44 @@ function createGameState(player1Name, player2Name) {
     drawCard(state, 'player2');
   }
 
+  // Early Power of Chaos/tutorial flow lets the starting player draw on turn 1.
+  drawCard(state, firstPlayer);
+
   return state;
 }
 
+function instantiateDeck(cardIds) {
+  const counts = new Map();
+  return cardIds.map((id) => {
+    const card = CARDS.find(c => c.id === id);
+    if (!card) return null;
+    const copy = counts.get(id) || 0;
+    counts.set(id, copy + 1);
+    return { ...card, uid: `${id}_${copy}`, cardId: `${id}_${copy}` };
+  }).filter(Boolean);
+}
+
+function buildDeckFromIds(cardIds) {
+  if (!Array.isArray(cardIds)) return null;
+  const mainIds = cardIds.filter(id => CARDS.some(c => c.id === id && c.type !== 'fusion'));
+  if (mainIds.length < 40) return null;
+  const counts = mainIds.reduce((acc, id) => ({ ...acc, [id]: (acc[id] || 0) + 1 }), {});
+  if (Object.values(counts).some(count => count > 3)) return null;
+  return instantiateDeck(mainIds);
+}
+
 function generateDeck() {
-  // Build a 40-card deck from the 160-card pool
-  // Pick 10 unique monsters (3 copies each = 30) + 5 spells (2 copies = 10)
+  // Build a legal 40-card early-PoC style starter deck from the unlocked pool.
   const monsters = CARDS.filter(c => c.type === 'monster');
-  const spells = CARDS.filter(c => c.type === 'spell');
-  
-  // Shuffle and pick 10 monsters (3 copies each)
-  const shuffledMonsters = [...monsters].sort(() => Math.random() - 0.5).slice(0, 10);
-  const deck = [];
-  for (const m of shuffledMonsters) {
-    for (let i = 0; i < 3; i++) {
-      deck.push({ ...m, uid: `${m.id}_${i}`, cardId: `${m.id}_${i}` });
-    }
+  const spellsAndTraps = CARDS.filter(c => c.type === 'spell' || c.type === 'trap');
+  const deckIds = [];
+  for (const m of [...monsters].sort(() => Math.random() - 0.5).slice(0, 12)) {
+    deckIds.push(m.id, m.id);
   }
-  
-  // Pick 5 spells (2 copies each)
-  const shuffledSpells = [...spells].sort(() => Math.random() - 0.5).slice(0, 5);
-  for (const s of shuffledSpells) {
-    for (let i = 0; i < 2; i++) {
-      deck.push({ ...s, uid: `${s.id}_${i}`, cardId: `${s.id}_${i}` });
-    }
+  for (const s of [...spellsAndTraps].sort(() => Math.random() - 0.5).slice(0, 16)) {
+    deckIds.push(s.id);
   }
-  
-  return shuffleDeck(deck);
+  return shuffleDeck(instantiateDeck(deckIds.slice(0, 40)));
 }
 
 function drawCard(state, playerKey) {
@@ -322,4 +334,5 @@ export {
   advancePhase,
   serialize,
   PHASES,
+  buildDeckFromIds,
 };

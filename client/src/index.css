@@ -1285,3 +1285,121 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   0%, 100% { box-shadow: 0 0 15px 3px rgba(73,149,255,.72) !important; }
   50% { box-shadow: 0 0 24px 7px rgba(255,232,93,.95) !important; }
 }
+
+/* Deck Construction */
+.deck-builder-panel {
+  background: rgba(10, 10, 18, .82);
+  border: 2px solid #d4af37;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 0 28px rgba(0,0,0,.55), inset 0 0 18px rgba(212,175,55,.08);
+}
+
+.deck-builder-list {
+  max-height: 430px;
+  overflow-y: auto;
+  border: 1px solid rgba(212,175,55,.32);
+  border-radius: 8px;
+  background: rgba(0,0,0,.32);
+}
+
+.deck-builder-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(212,175,55,.14);
+}
+
+.deck-builder-row:hover {
+  background: rgba(212,175,55,.08);
+}
+
+.deck-mini-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #d4af37;
+  background: #2d1b0e;
+  color: #ffd700;
+  font-weight: 900;
+}
+
+.deck-mini-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+/* Coin toss */
+.poc-coin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 230;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(0,0,0,.25), rgba(0,0,0,.72));
+  animation: pocCoinOverlay 2200ms ease-out both;
+}
+
+.poc-coin {
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  border: 7px ridge #f5d76e;
+  background: radial-gradient(circle at 35% 25%, #fff1a8, #d4af37 42%, #7b4f12 100%);
+  box-shadow: 0 0 32px rgba(245,215,110,.85), inset 0 0 16px rgba(255,255,255,.35);
+  position: relative;
+  animation: pocCoinFlip 1450ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.poc-coin::before {
+  content: '𓂀';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 58px;
+  color: #3b2406;
+  text-shadow: 0 1px 0 rgba(255,255,255,.45);
+}
+
+.poc-coin.tails::before {
+  content: 'KC';
+  font: 900 38px/1 Georgia, serif;
+}
+
+.poc-coin-result {
+  margin-top: 18px;
+  padding: 11px 26px;
+  color: #fff6bf;
+  background: linear-gradient(180deg, rgba(88,57,24,.96), rgba(31,18,8,.96));
+  border: 4px ridge #d8b85d;
+  font: 900 18px/1.2 Georgia, serif;
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 0 #000;
+  animation: pocCoinText 2200ms ease-out both;
+}
+
+@keyframes pocCoinFlip {
+  0% { transform: translateY(-160px) rotateY(0deg) rotateX(0deg) scale(.75); }
+  45% { transform: translateY(-20px) rotateY(900deg) rotateX(360deg) scale(1.2); }
+  72% { transform: translateY(14px) rotateY(1440deg) rotateX(720deg) scale(1); }
+  100% { transform: translateY(0) rotateY(1800deg) rotateX(720deg) scale(1); }
+}
+
+@keyframes pocCoinOverlay {
+  0% { opacity: 0; }
+  8%, 82% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes pocCoinText {
+  0%, 48% { opacity: 0; transform: translateY(10px); }
+  60%, 85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}

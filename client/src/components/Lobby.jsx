@@ -1,4 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
+const DECK_STORAGE_KEY = 'poc_custom_deck_ids'
+
+function getSavedDeck() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DECK_STORAGE_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 export default function Lobby({ onStartGame, connectionStatus }) {
   const isDev = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('dev') === 'true'
@@ -7,10 +18,52 @@ export default function Lobby({ onStartGame, connectionStatus }) {
   const [playerName, setPlayerName] = useState(isDev ? 'Jarvis' : '')
   const [roomCode, setRoomCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
+  const [cards, setCards] = useState([])
+  const [deckIds, setDeckIds] = useState(getSavedDeck)
+  const [filter, setFilter] = useState('')
+
+  useEffect(() => {
+    const apiBase = window.__SOCKET_URL__ || ''
+    fetch(`${apiBase}/api/cards`)
+      .then(res => res.json())
+      .then(data => {
+        const unlocked = data.cards || []
+        setCards(unlocked)
+        if (deckIds.length < 40 && unlocked.length >= 40) {
+          const starter = unlocked.filter(c => c.type !== 'fusion').slice(0, 40).map(c => c.id)
+          setDeckIds(starter)
+          localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(starter))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const deckCounts = useMemo(() => deckIds.reduce((acc, id) => ({ ...acc, [id]: (acc[id] || 0) + 1 }), {}), [deckIds])
+  const visibleCards = useMemo(() => {
+    const q = filter.trim().toLowerCase()
+    return cards.filter(card => card.type !== 'fusion' && (!q || card.name.toLowerCase().includes(q) || card.type.toLowerCase().includes(q)))
+  }, [cards, filter])
+  const deckLegal = deckIds.length >= 40 && Object.values(deckCounts).every(count => count <= 3)
+
+  const saveDeck = (nextDeck) => {
+    setDeckIds(nextDeck)
+    localStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(nextDeck))
+  }
+
+  const addCard = (id) => {
+    if ((deckCounts[id] || 0) >= 3) return
+    saveDeck([...deckIds, id])
+  }
+
+  const removeCard = (id) => {
+    const index = deckIds.indexOf(id)
+    if (index === -1) return
+    saveDeck(deckIds.filter((_, i) => i !== index))
+  }
 
   const handleStartYugi = () => {
     if (playerName.trim()) {
-      onStartGame({ mode: 'yugi', playerName: playerName.trim() })
+      onStartGame({ mode: 'yugi', playerName: playerName.trim(), deckIds })
     }
   }
 
@@ -84,6 +137,13 @@ export default function Lobby({ onStartGame, connectionStatus }) {
             >
               Play Online vs Friend
             </button>
+
+            <button
+              onClick={() => setMode('deck')}
+              className="w-full py-4 bg-gradient-to-r from-yellow-700 to-amber-900 hover:from-yellow-600 hover:to-amber-800 text-white font-bold rounded-lg transition-all transform hover:scale-105"
+            >
+              Deck Construction
+            </button>
           </div>
         )}
 
@@ -91,16 +151,55 @@ export default function Lobby({ onStartGame, connectionStatus }) {
           <div className="space-y-3">
             <button
               onClick={handleStartYugi}
-              disabled={!playerName.trim()}
+              disabled={!playerName.trim() || !deckLegal}
               className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Start Duel!
+              Start Duel! {deckLegal ? '' : `(Deck needs ${Math.max(0, 40 - deckIds.length)} more)`}
             </button>
             <button
               onClick={() => setMode(null)}
               className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
             >
               ← Back
+            </button>
+          </div>
+        )}
+
+        {mode === 'deck' && (
+          <div className="deck-builder-panel">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-ygo-gold font-bold">Deck Construction</h4>
+              <span className={deckLegal ? 'text-green-300 text-sm' : 'text-red-300 text-sm'}>
+                {deckIds.length} cards / min 40 / max 3 copies
+              </span>
+            </div>
+            <input
+              type="text"
+              placeholder="Search unlocked cards..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-900 border border-ygo-gold rounded text-white mb-3"
+            />
+            <div className="deck-builder-list">
+              {visibleCards.map(card => (
+                <div key={card.id} className="deck-builder-row">
+                  <div>
+                    <div className="font-bold text-white">{card.name}</div>
+                    <div className="text-xs text-gray-400 uppercase">{card.type}{card.atk !== undefined ? ` · ATK ${card.atk} / DEF ${card.def}` : ''}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => removeCard(card.id)} className="deck-mini-btn">−</button>
+                    <span className="text-ygo-gold w-5 text-center">{deckCounts[card.id] || 0}</span>
+                    <button onClick={() => addCard(card.id)} disabled={(deckCounts[card.id] || 0) >= 3} className="deck-mini-btn">+</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setMode(null)}
+              className="mt-3 w-full py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+            >
+              Save & Back
             </button>
           </div>
         )}
