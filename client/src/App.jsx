@@ -239,9 +239,11 @@ export default function App() {
       dispatch({ type: 'SELECT_MONSTER', payload: index })
       const targets = []
       const opponentMonsters = state.gameState?.opponent?.field?.monsters || []
+      console.log('[handleSelectMonster] opponentMonsters=', JSON.stringify(opponentMonsters))
       opponentMonsters.forEach((mon, i) => {
         if (mon) targets.push(i)
       })
+      console.log('[handleSelectMonster] computed targets=', targets)
       dispatch({ type: 'SET_ATTACK_TARGETS', payload: targets })
     }
   }, [state.rawPhase, state.isYourTurn, state.gameState?.opponent])
