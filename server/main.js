@@ -145,6 +145,7 @@ io.on('connection', (socket) => {
         gs.started = true;
         gs.players.player1.id = socket.id; // Store socketId so playerKey detection works in all handlers
         room.state.gameState = gs;
+        if (checkWinCondition(gs, room.roomCode, io)) return;
         io.to(room.roomCode).emit('coin-flip', { side: coinSide, winner: firstPlayer });
         io.to(room.roomCode).emit('turn-start', { player: gs.currentPlayer, phase: gs.phase, turn: gs.turn });
         io.to(room.roomCode).emit('game-state', { state: serialize(gs, null) });
@@ -249,6 +250,7 @@ io.on('connection', (socket) => {
         room.gameState.started = true;
         room.gameState.currentPlayer = 'player1';
         room.gameState.phase = 'draw';
+        if (checkWinCondition(room.gameState, room.code, io)) return;
 
         // Broadcast turn start
         io.to(room.code).emit('turn-start', {

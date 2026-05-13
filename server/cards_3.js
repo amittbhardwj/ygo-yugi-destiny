@@ -21,6 +21,13 @@ const CARDS_PART3 = [
   { id: 'm99', name: "Marauding Captain", atk: 1200, def: 800, type: 'monster', level: 3, attribute: 'light', species: 'warrior', effect: null, description: "During your Main Phase, you can Normal Summon 1 Level 3 or lower Warrior monster in addition to your Normal Summon. You can only use this effect once per turn." },
   { id: 'm100', name: "D.D. Scout Plane", atk: 1400, def: 800, type: 'monster', level: 4, attribute: 'dark', species: 'machine', effect: null, description: "If this card is destroyed by a card effect and sent to the GY, draw 1 card." },
 
+  // ===== EXODIA WIN CONDITION CARDS (m101-m105) =====
+  { id: 'm101', name: "Exodia the Forbidden One", atk: 1000, def: 1000, type: 'monster', level: 3, attribute: 'dark', species: 'spellcaster', effect: 'exodia_piece', exodiaPiece: 'head', description: "If you have this card plus the Right Arm, Left Arm, Right Leg, and Left Leg of the Forbidden One in your hand, you win the Duel." },
+  { id: 'm102', name: "Right Arm of the Forbidden One", atk: 200, def: 300, type: 'monster', level: 1, attribute: 'dark', species: 'spellcaster', effect: 'exodia_piece', exodiaPiece: 'right_arm', description: "One of the five Forbidden One cards required for an Exodia victory." },
+  { id: 'm103', name: "Left Arm of the Forbidden One", atk: 200, def: 300, type: 'monster', level: 1, attribute: 'dark', species: 'spellcaster', effect: 'exodia_piece', exodiaPiece: 'left_arm', description: "One of the five Forbidden One cards required for an Exodia victory." },
+  { id: 'm104', name: "Right Leg of the Forbidden One", atk: 200, def: 300, type: 'monster', level: 1, attribute: 'dark', species: 'spellcaster', effect: 'exodia_piece', exodiaPiece: 'right_leg', description: "One of the five Forbidden One cards required for an Exodia victory." },
+  { id: 'm105', name: "Left Leg of the Forbidden One", atk: 200, def: 300, type: 'monster', level: 1, attribute: 'dark', species: 'spellcaster', effect: 'exodia_piece', exodiaPiece: 'left_leg', description: "One of the five Forbidden One cards required for an Exodia victory." },
+
   // ===== SPELL CARDS (s1-s15) =====
   { id: 's1', name: "Dark Hole", type: 'spell', category: 'normal', effect: 'destroy_all_monsters', description: "Destroy all monsters on the field." },
   { id: 's2', name: "Monster Reborn", type: 'spell', category: 'normal', effect: 'special_summon_grave', description: "Target 1 monster in either GY; Special Summon it." },

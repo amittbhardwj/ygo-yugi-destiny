@@ -7,6 +7,7 @@ import CARDS from './cards.js';
 import { getCardImageUrl } from './cardImages.js';
 
 const STARTING_LP = 8000;
+const EXODIA_IDS = ['m101', 'm102', 'm103', 'm104', 'm105'];
 
 // Fisher-Yates shuffle
 function shuffleDeck(deck) {
@@ -88,6 +89,24 @@ function buildDeckFromIds(cardIds) {
   return instantiateDeck(mainIds);
 }
 
+function getBaseCardId(card) {
+  return card?.id || card?.cardId?.replace(/_[0-9]+$/, '') || null;
+}
+
+function hasAllExodiaPieces(player) {
+  const handIds = new Set((player.hand || []).map(getBaseCardId).filter(Boolean));
+  return EXODIA_IDS.every(id => handIds.has(id));
+}
+
+function checkExodiaWin(state, playerKey) {
+  const player = state.players[playerKey];
+  if (!player || !hasAllExodiaPieces(player)) return false;
+  state.winner = playerKey;
+  state.winReason = 'Exodia the Forbidden One';
+  state.log.push(`${player.name} assembled all five pieces of Exodia! ${player.name} wins!`);
+  return true;
+}
+
 function generateDeck() {
   // Build a legal 40-card early-PoC style starter deck from the unlocked pool.
   const monsters = CARDS.filter(c => c.type === 'monster');
@@ -113,6 +132,7 @@ function drawCard(state, playerKey) {
   }
   const card = p.deck.pop();
   p.hand.push(card);
+  checkExodiaWin(state, playerKey);
   return card;
 }
 
@@ -344,4 +364,7 @@ export {
   serialize,
   PHASES,
   buildDeckFromIds,
+  hasAllExodiaPieces,
+  checkExodiaWin,
+  EXODIA_IDS,
 };
