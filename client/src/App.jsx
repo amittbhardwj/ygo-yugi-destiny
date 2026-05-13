@@ -75,6 +75,7 @@ const initialState = {
   phase: 'Draw',
   rawPhase: 'draw',
   isYourTurn: false,
+  selectedMonster: null,
 }
 
 export default function App() {

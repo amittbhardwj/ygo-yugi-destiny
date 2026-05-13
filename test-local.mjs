@@ -1,117 +1,100 @@
 import { chromium } from 'playwright';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const distDir = join(__dirname, 'client/dist');
+const URL = 'https://ygo-yugi-destiny-production.up.railway.app';
 
-// Create a patched index.html that uses localhost:3456 for socket
-const localHTML = readFileSync(join(distDir, 'index.html'), 'utf8')
-  .replace(
-    'const SOCKET_URL = window.location.origin',
-    'const SOCKET_URL = "http://localhost:3456"'
-  );
-const patchedIndexPath = join(distDir, 'index-patched.html');
-writeFileSync(patchedIndexPath, localHTML);
+async function run() {
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+  
+  page.on('console', msg => console.log('[CONSOLE]', msg.text()));
 
-const httpServer = createServer((req, res) => {
-  let filePath = join(distDir, req.url === '/' ? '/index-patched.html' : req.url);
-  if (existsSync(filePath)) {
-    const ct = filePath.endsWith('.js') ? 'application/javascript' 
-               : filePath.endsWith('.css') ? 'text/css' 
-               : filePath.endsWith('.html') ? 'text/html' : 'text/plain';
-    res.writeHead(200, { 'Content-Type': ct });
-    res.end(readFileSync(filePath));
-  } else {
-    res.writeHead(404); res.end('Not found: ' + req.url);
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.fill('input[placeholder*="name"]', 'Boss');
+  await page.click('button:has-text("Play vs Yugi")');
+  await page.waitForTimeout(300);
+  await page.click('button:has-text("Start Duel")');
+  
+  console.log('Waiting for AI turn...');
+  await page.waitForTimeout(20000);
+  
+  // Go to M1
+  console.log('In SP, waiting...');
+  await page.waitForTimeout(3000);
+  
+  // Summon a monster via double-click
+  console.log('Double-clicking to summon...');
+  const cardLocator = page.locator('div.relative').filter({ hasText: /★.*ATK/ }).first();
+  await cardLocator.dblclick({ timeout: 5000 });
+  await page.waitForTimeout(1000);
+  
+  // Check if modal appeared
+  const hasSummon = await page.evaluate(() => {
+    return !!Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('SUMMON'));
+  });
+  console.log('Has SUMMON button:', hasSummon);
+  
+  if (hasSummon) {
+    await page.click('button:has-text("SUMMON")');
+    await page.waitForTimeout(2000);
   }
-});
-
-const io = new Server(httpServer);
-io.on('connection', (socket) => {
-  socket.on('play-vs-ai', (data) => {
-    console.log('[LOCAL SERVER] got play-vs-ai');
-    socket.emit('room-created', { roomCode: 'TEST' });
-    setTimeout(() => {
-      socket.emit('game-state', {
-        state: {
-          player: {
-            name: 'Amitt', lifePoints: 4000,
-            hand: [
-              { id: 'm1', name: 'Dark Magician', type: 'monster', attack: 2500, defense: 2100 },
-              { id: 'm3', name: 'Dark Magic Attack', type: 'spell' }
-            ],
-            field: { monsters: [null, null, null], spells: [null, null, null] },
-            deckCount: 35, grave: []
-          },
-          opponent: {
-            name: 'Yugi', lifePoints: 4000,
-            hand: [{ id: 'm2', name: 'Blue Eyes White Dragon', type: 'monster', attack: 3000, defense: 2500 }],
-            field: { monsters: [null, null, null], spells: [null, null, null] },
-            deckCount: 35, grave: []
-          },
-          turn: 1, phase: 'draw'
-        }
-      });
-      console.log('[LOCAL SERVER] sent game-state with 2 cards');
-    }, 1000);
-  });
-});
-
-httpServer.listen(3456, async () => {
-  console.log('[LOCAL] Server on http://localhost:3456');
   
-  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
-  const page = await browser.newPage();
+  // Go to BP
+  await page.click('button:has-text("END PHASE")');
+  await page.waitForTimeout(2000);
   
-  const logs = [];
-  page.on('pageerror', err => { console.log('[PAGE ERROR]', err.message); logs.push('[PAGE ERROR] ' + err.message); });
-  page.on('console', msg => {
-    const text = '[' + msg.type() + '] ' + msg.text();
-    console.log(text);
-    logs.push(text);
+  // Check phase
+  const inBP = await page.evaluate(() => {
+    const btns = Array.from(document.querySelectorAll('button'));
+    const bp = btns.find(b => b.textContent.trim() === 'BP');
+    return bp ? !bp.disabled : false;
   });
-
-  await page.goto('http://localhost:3456/');
-  console.log('[TEST] Page loaded');
-  await new Promise(r => setTimeout(r, 2000));
-
-  // Check if we have the NEW bundle
-  const jsEntries = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('script[type="module"]')).map(s => s.src);
+  console.log('In BP:', inBP);
+  
+  // Now try to click player field monster - use Playwright's click which goes through proper event routing
+  console.log('\nTrying to select monster for attack...');
+  
+  // Find player monster (should be on field now, y < 750)
+  const playerMonsters = await page.evaluate(() => {
+    const result = [];
+    const all = document.querySelectorAll('*');
+    for (const el of all) {
+      const style = window.getComputedStyle(el);
+      if (style.cursor !== 'pointer') continue;
+      const text = el.textContent || '';
+      if (!text.match(/ATK.*DEF/)) continue;
+      
+      const rect = el.getBoundingClientRect();
+      if (rect.top < 750 && rect.top > 500) {
+        result.push({ text: text.replace(/\s+/g,' ').trim().slice(0,40), y: Math.round(rect.top) });
+      }
+    }
+    return result;
   });
-  console.log('[TEST] Script src:', jsEntries);
-
-  await page.locator('input[placeholder="Enter your name..."]').fill('Amitt');
-  await new Promise(r => setTimeout(r, 500));
-  await page.locator('button:has-text("Play vs Yugi")').click();
-  console.log('[TEST] Clicked Play vs Yugi');
-  await new Promise(r => setTimeout(r, 500));
-  await page.locator('button:has-text("Start Duel")').click();
-  console.log('[TEST] Clicked Start Duel');
-  await new Promise(r => setTimeout(r, 8000));
-
-  const body = await page.locator('body').textContent();
-  console.log('\n=== BODY (first 400) ===');
-  console.log(body.substring(0, 400));
-  console.log('\n=== CHECKS ===');
-  console.log('Dark Magician:', body.includes('Dark Magician'));
-  console.log('Blue Eyes:', body.includes('Blue Eyes'));
-  console.log('Hand (0 cards):', body.includes('Hand (0 cards)'));
-  console.log('Hand (2 cards):', body.includes('Hand (2 cards)'));
-
-  const hgeLogs = logs.filter(l => l.includes('[HGE]'));
-  console.log('\n=== [HGE] LOGS (' + hgeLogs.length + ') ===');
-  hgeLogs.forEach(l => console.log(l));
-
-  const gameStateLogs = logs.filter(l => l.includes('game_state') || l.includes('game-state'));
-  console.log('\n=== GAME STATE LOGS (' + gameStateLogs.length + ') ===');
-  gameStateLogs.forEach(l => console.log(l));
-
+  console.log('Player field monsters:', JSON.stringify(playerMonsters));
+  
+  if (playerMonsters.length > 0) {
+    console.log('Clicking monster via Playwright...');
+    // Use locator to click with full event handling
+    const monsterText = playerMonsters[0].text.split('ATK')[0].trim();
+    await page.locator('div.relative').filter({ hasText: new RegExp(monsterText) }).first().click({ timeout: 5000 });
+    await page.waitForTimeout(2000);
+    
+    const state = await page.evaluate(() => {
+      const highlighted = document.querySelectorAll('[class*="selected"], [class*="ring"], [class*="target"]');
+      return { count: highlighted.length };
+    });
+    console.log('Selection state:', JSON.stringify(state));
+  }
+  
+  // Check LP
+  const result = await page.evaluate(() => {
+    const text = document.body.innerText;
+    const yugiLP = text.match(/Yugi.*?(\d+)\s+LP/);
+    return { yugiLP: yugiLP ? yugiLP[1] : 'N/A' };
+  });
+  console.log('Yugi LP:', result.yugiLP);
+  
   await browser.close();
-  httpServer.close();
-  process.exit(0);
-});
+}
+
+run().catch(console.error);

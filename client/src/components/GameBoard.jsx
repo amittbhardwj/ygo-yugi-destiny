@@ -90,7 +90,7 @@ export default function GameBoard({
   const canBattle = isYourTurn && rawPhase === 'battle'
 
   const handleMonsterClick = (card, index) => {
-    console.log('[handleMonsterClick] canBattle=', canBattle, 'selectedMonster=', selectedMonster, 'index=', index, 'card=', card?.name);
+    console.log('[handleMonsterClick] canBattle=', canBattle, 'isYourTurn=', isYourTurn, 'rawPhase=', rawPhase, 'selectedMonster=', selectedMonster, 'index=', index, 'card=', card?.name);
     if (canBattle && selectedMonster === null) {
       console.log('[handleMonsterClick] calling onSelectMonster(', index, ')');
       onSelectMonster(index)
