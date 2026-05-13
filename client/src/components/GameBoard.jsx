@@ -43,7 +43,7 @@ function LifePointsDisplay({ name, lp, isPlayer }) {
 function GameOverlay({ message, subMessage }) {
   if (!message) return null
   return (
-    <div className="game-overlay">
+    <div className="game-overlay" style={{ pointerEvents: 'none' }}>
       <div className="game-overlay-box">
         <div className="overlay-title">{message}</div>
         {subMessage && <div className="overlay-sub">{subMessage}</div>}
