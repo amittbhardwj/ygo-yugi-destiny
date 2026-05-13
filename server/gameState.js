@@ -309,6 +309,7 @@ function serialize(state, forSocketId) {
     phase: state.phase,
     winner: state.winner,
     log: state.log,
+    started: state.started,
   };
 }
 
