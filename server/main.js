@@ -75,6 +75,7 @@ app.get('*', (req, res) => {
 
 // Track AI timeouts per room so we can cancel them on cleanup
 const aiTimeouts = new Map();
+const autoPhaseTimeouts = new Map();
 
 function clearAITimeout(roomCode) {
   const timeout = aiTimeouts.get(roomCode);
@@ -88,6 +89,61 @@ function setAITimeout(roomCode, fn, delayMs) {
   clearAITimeout(roomCode);
   const timeout = setTimeout(fn, delayMs);
   aiTimeouts.set(roomCode, timeout);
+}
+
+function clearAutoPhaseTimeout(roomCode) {
+  const timeout = autoPhaseTimeouts.get(roomCode);
+  if (timeout) {
+    clearTimeout(timeout);
+    autoPhaseTimeouts.delete(roomCode);
+  }
+}
+
+function setAutoPhaseTimeout(roomCode, fn, delayMs) {
+  clearAutoPhaseTimeout(roomCode);
+  const timeout = setTimeout(fn, delayMs);
+  autoPhaseTimeouts.set(roomCode, timeout);
+}
+
+function emitPhaseAndState(roomCode, gs) {
+  io.to(roomCode).emit('turn-start', {
+    player: gs.currentPlayer,
+    phase: gs.phase,
+    turn: gs.turn
+  });
+  io.to(roomCode).emit('game-state', { state: serialize(gs, null) });
+}
+
+function scheduleAutoMainPhase(roomState) {
+  if (!roomState || !roomState.gameState) return;
+  const roomCode = roomState.code || roomState.roomCode;
+  const gs = roomState.gameState;
+  clearAutoPhaseTimeout(roomCode);
+
+  // Yugi already advances his own Draw/Standby phases inside executeYugiTurn().
+  if (!gs.started || gs.winner || gs.phase !== 'draw' || (roomState.yugiMode && gs.currentPlayer === 'player2')) return;
+
+  const playerAtSchedule = gs.currentPlayer;
+  const turnAtSchedule = gs.turn;
+
+  const advanceOneOpeningPhase = () => {
+    autoPhaseTimeouts.delete(roomCode);
+    if (!roomState.gameState || gs.winner || !gs.started) return;
+    if (gs.currentPlayer !== playerAtSchedule || gs.turn !== turnAtSchedule) return;
+    if (gs.phase !== 'draw' && gs.phase !== 'standby') return;
+
+    const result = advancePhase(gs);
+    if (!result.success) return;
+    if (checkWinCondition(gs, roomCode, io)) return;
+
+    emitPhaseAndState(roomCode, gs);
+
+    if (gs.phase === 'standby') {
+      setAutoPhaseTimeout(roomCode, advanceOneOpeningPhase, 1000);
+    }
+  };
+
+  setAutoPhaseTimeout(roomCode, advanceOneOpeningPhase, 1000);
 }
 
 function finishAITurnIfNeeded(roomState) {
@@ -108,6 +164,7 @@ function finishAITurnIfNeeded(roomState) {
       phase: gs.phase,
       turn: gs.turn
     });
+    scheduleAutoMainPhase(roomState);
   }
 
   io.to(roomState.code).emit('game-state', { state: serialize(gs, null) });
@@ -149,6 +206,7 @@ io.on('connection', (socket) => {
         io.to(room.roomCode).emit('coin-flip', { side: coinSide, winner: firstPlayer });
         io.to(room.roomCode).emit('turn-start', { player: gs.currentPlayer, phase: gs.phase, turn: gs.turn });
         io.to(room.roomCode).emit('game-state', { state: serialize(gs, null) });
+        scheduleAutoMainPhase(room.state);
         console.log(`[Game] Started (AI mode): ${room.roomCode}`);
         // Trigger AI turn after a short delay
         if (room.state.yugiMode) {
@@ -261,6 +319,7 @@ io.on('connection', (socket) => {
 
         // Send full game state
         io.to(room.code).emit('game-state', { state: serialize(room.gameState, null) });
+        scheduleAutoMainPhase(room);
 
         console.log(`[Game] Started: ${room.code}`);
 
@@ -295,6 +354,7 @@ io.on('connection', (socket) => {
 
       const gs = room.gameState;
       const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
+      clearAutoPhaseTimeout(room.code);
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
 
       // Validate it's this player's turn
@@ -595,6 +655,7 @@ io.on('connection', (socket) => {
         turn: gs.turn
       });
       io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      scheduleAutoMainPhase(room);
 
       // In yugiMode: player1's turn ends when they advance from 'end' phase.
       // At that moment, turn switches to player2 (AI). Clear playerLocked and fire AI.
@@ -634,6 +695,7 @@ io.on('connection', (socket) => {
 
       const gs = room.gameState;
       const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
+      clearAutoPhaseTimeout(room.code);
 
       if (gs.currentPlayer !== playerKey) {
         socket.emit('error', { message: 'Not your turn' });
@@ -664,6 +726,7 @@ io.on('connection', (socket) => {
         turn: gs.turn
       });
       io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      scheduleAutoMainPhase(room);
 
       // In yugiMode: player1's turn ends → AI takes over
       const turnJustSwitchedToAI = (room.yugiMode && prevPlayer === 'player1');
@@ -713,6 +776,7 @@ io.on('connection', (socket) => {
       });
 
       clearAITimeout(room.code);
+      clearAutoPhaseTimeout(room.code);
       closeRoom(room.code);
       console.log(`[Game] ${room.code}: ${gs.players[playerKey].name} surrendered`);
     } catch (err) {
@@ -726,6 +790,7 @@ io.on('connection', (socket) => {
       const room = getRoomBySocket(socket.id);
       if (room) {
         clearAITimeout(room.code);
+        clearAutoPhaseTimeout(room.code);
         const playerKey = room.players.player1?.id === socket.id ? 'player1' : 'player2';
         closeRoom(room.code);
         socket.emit('left-room', {});
@@ -743,6 +808,7 @@ io.on('connection', (socket) => {
     const room = getRoomBySocket(socket.id);
     if (room) {
       clearAITimeout(room.code);
+      clearAutoPhaseTimeout(room.code);
       const playerKey = room.players.player1?.id === socket.id ? 'player1' : 'player2';
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
       const opponentSocketId = room.players[opponentKey]?.id;
@@ -795,6 +861,7 @@ function checkWinCondition(gs, roomCode, io) {
     io.to(roomCode).emit('game-over', buildGameOverPayload(gs, winnerKey, gs.winReason || 'Win condition met'));
     gs.started = false;
     clearAITimeout(roomCode);
+    clearAutoPhaseTimeout(roomCode);
     closeRoom(roomCode);
     return true;
   }
@@ -809,6 +876,7 @@ function checkWinCondition(gs, roomCode, io) {
       io.to(roomCode).emit('game-over', buildGameOverPayload(gs, winnerKey, gs.winReason));
       gs.started = false;
       clearAITimeout(roomCode);
+      clearAutoPhaseTimeout(roomCode);
       closeRoom(roomCode);
       return true;
     }
@@ -826,6 +894,7 @@ function checkWinCondition(gs, roomCode, io) {
       io.to(roomCode).emit('game-over', buildGameOverPayload(gs, winnerKey, gs.winReason));
       gs.started = false;
       clearAITimeout(roomCode);
+      clearAutoPhaseTimeout(roomCode);
       closeRoom(roomCode);
       return true;
     }
