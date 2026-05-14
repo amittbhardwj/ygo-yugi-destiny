@@ -77,6 +77,58 @@ function YugiGuide({ phase, isYourTurn }) {
   )
 }
 
+function DeckSidePanel({ cards = [], onCardSelect }) {
+  return (
+    <div className="mt-3 rounded border border-egyptian-gold/30 bg-black/40 p-2 text-xs max-h-48 overflow-y-auto">
+      <div className="text-egyptian-gold font-bold mb-2">YOUR DECK ({cards.length})</div>
+      {cards.length === 0 ? (
+        <div className="text-gray-500">Deck empty</div>
+      ) : (
+        <div className="space-y-1">
+          {cards.map((card, index) => (
+            <button
+              key={card.cardId || card.uid || `${card.id}-${index}`}
+              type="button"
+              className="w-full text-left px-2 py-1 rounded bg-gray-900/60 hover:bg-egyptian-gold/20 text-gray-200 flex justify-between gap-2"
+              onMouseEnter={() => onCardSelect(card)}
+              onFocus={() => onCardSelect(card)}
+              onClick={() => onCardSelect(card)}
+              title={card.description || card.name}
+            >
+              <span className="truncate">{index + 1}. {card.name || 'Unknown card'}</span>
+              <span className="text-gray-500 uppercase shrink-0">{card.type || ''}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function findFreshCard(card, gameState) {
+  if (!card) return null
+  const id = card.cardId || card.uid || card.id
+  if (!id) return card
+
+  const zones = []
+  for (const side of [gameState?.player, gameState?.opponent]) {
+    if (!side) continue
+    zones.push(
+      side.hand,
+      side.deck,
+      side.grave,
+      side.field?.monsters,
+      side.field?.spells,
+    )
+  }
+
+  for (const zone of zones) {
+    const fresh = zone?.find(c => (c.cardId || c.uid || c.id) === id)
+    if (fresh) return fresh
+  }
+  return card
+}
+
 export default function GameBoard({
   gameState,
   isYourTurn,
@@ -105,6 +157,7 @@ export default function GameBoard({
   if (!gameState) return null
 
   const { player, opponent } = gameState
+  const detailCard = findFreshCard(hoveredCard, gameState)
   const normalizedPhase = normalizePhase(currentPhase)
   const isAttackAnimation = duelAnimation?.kind === 'attack'
   const opponentDamage = isAttackAnimation && duelAnimation.damage > 0 ? duelAnimation.damage : null
@@ -118,6 +171,7 @@ export default function GameBoard({
   const canBattle = isYourTurn && rawPhase === 'battle'
 
   const handleMonsterClick = (card, index) => {
+    setHoveredCard(card)
     console.log('[handleMonsterClick] canBattle=', canBattle, 'isYourTurn=', isYourTurn, 'rawPhase=', rawPhase, 'selectedMonster=', selectedMonster, 'index=', index, 'card=', card?.name);
     if (canBattle && selectedMonster === null) {
       console.log('[handleMonsterClick] calling onSelectMonster(', index, ')');
@@ -150,12 +204,21 @@ export default function GameBoard({
     }
   }
 
+  const handleSpellClick = (card) => {
+    setHoveredCard(card)
+    if (!canPlayCard) return
+    const type = (card?.type || '').toLowerCase()
+    if (type === 'spell') {
+      onPlayCard(card, 'activate')
+    }
+  }
+
   return (
     <div className="game-board-root">
       <YugiGuide phase={rawPhase} isYourTurn={isYourTurn} />
       {/* Left Panel - Card Detail */}
       <div className="left-panel">
-        <CardDetailPanel card={hoveredCard} />
+        <CardDetailPanel card={detailCard} />
 
         {/* Phase buttons below card detail */}
         <div className="phase-column">
@@ -185,6 +248,8 @@ export default function GameBoard({
             </button>
           </div>
         </div>
+
+        <DeckSidePanel cards={player.deck || []} onCardSelect={setHoveredCard} />
       </div>
 
       {/* Main Field Area */}
@@ -242,7 +307,7 @@ export default function GameBoard({
             attackTargets={attackTargets}
             selectable={canPlayCard || canBattle}
             onMonsterClick={handleMonsterClick}
-            onSpellClick={() => {}}
+            onSpellClick={handleSpellClick}
             onEmptySlotClick={() => {}}
             onCardHover={handleCardHover}
             duelAnimation={duelAnimation}

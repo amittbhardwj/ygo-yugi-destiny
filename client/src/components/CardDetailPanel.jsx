@@ -103,10 +103,13 @@ export default function CardDetailPanel({ card, onClose }) {
     )
   }
 
-  const { name, type, attribute, level, atk, def, description, species } = card
+  const { name, attribute, level, atk, def, description, species } = card
+  const rawType = card.type || ''
+  const normalizedType = rawType.toLowerCase()
+  const displayType = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1).toLowerCase() : 'Unknown'
   const cardImage = getCardImage(card)
-  const isSpell = type === 'Spell'
-  const isTrap = type === 'Trap'
+  const isSpell = normalizedType === 'spell'
+  const isTrap = normalizedType === 'trap'
   const isMonster = !isSpell && !isTrap
 
   // Determine card type color for border
@@ -119,10 +122,11 @@ export default function CardDetailPanel({ card, onClose }) {
         <div className="card-image-area" style={{ borderColor: typeColor }}>
           {cardImage ? (
             <img
+              key={card.cardId || card.uid || name}
               src={cardImage}
               alt={name}
               className="card-detail-image"
-              onError={(e) => { e.target.style.display = 'none' }}
+              onError={(e) => { e.currentTarget.style.visibility = 'hidden' }}
             />
           ) : (
             <div className="card-detail-placeholder" style={{ background: typeColor }}>
@@ -164,7 +168,7 @@ export default function CardDetailPanel({ card, onClose }) {
             {/* Type line */}
             <div className="flex items-center gap-2 mb-3">
               <AttributeDot attribute={attribute} />
-              <span className="text-gray-300 text-sm">{type}</span>
+              <span className="text-gray-300 text-sm">{displayType}</span>
               {isMonster && species && (
                 <span className="text-gray-500 text-xs">/ {species}</span>
               )}
@@ -202,7 +206,7 @@ export default function CardDetailPanel({ card, onClose }) {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-400">Card Type</span>
-                <span className="text-white">{type}</span>
+                <span className="text-white">{displayType}</span>
               </div>
               {isMonster && (
                 <>

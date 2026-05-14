@@ -9,7 +9,7 @@ const __dirname = dirname(__filename);
 import CARDS from './cards.js';
 import { getCardImageUrl } from './cardImages.js';
 import { createGameState, drawCard, advancePhase, serialize, canAttack, executeAttack, directAttack, summonMonster, setSpellTrap } from './gameState.js';
-import { resolveSpellEffect, resolveTrapEffect } from './rules.js';
+import { resolveSpellEffect, resolveTrapEffect, processEventEffects } from './rules.js';
 import { createRoom, joinRoom, getRoomBySocket, broadcastToRoom, broadcastToOpponent, getGameState, closeRoom } from './rooms.js';
 import { executeYugiTurn } from './ai.js';
 
@@ -396,6 +396,8 @@ io.on('connection', (socket) => {
         return;
       }
 
+      processEventEffects(gs, 'summon', playerKey, { summonedMonster: result.card });
+
       gs.log.push(`${gs.players[playerKey].name} summoned ${card.name}`);
       gs.playerLocked = true;
 
@@ -447,6 +449,11 @@ io.on('connection', (socket) => {
         return;
       }
 
+      if (gs.players[playerKey].field.spells.length >= 5) {
+        socket.emit('error', { message: 'Maximum 5 Spell/Trap cards on field' });
+        return;
+      }
+
       const result = setSpellTrap(gs, playerKey, cardId, faceDown !== false);
       if (!result.success) {
         socket.emit('error', { message: result.error });
@@ -456,6 +463,14 @@ io.on('connection', (socket) => {
       const position = faceDown === false ? 'open' : 'set';
       gs.log.push(`${gs.players[playerKey].name} set ${card.name} (${position})`);
       gs.playerLocked = true;
+
+      if (faceDown === false && card.type === 'spell') {
+        const spellResult = resolveSpellEffect(gs, playerKey, cardId);
+        if (!spellResult.success) {
+          socket.emit('error', { message: spellResult.error });
+          return;
+        }
+      }
 
       io.to(room.code).emit('action-result', {
         success: true,
@@ -485,15 +500,38 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Find the spell on the field
-      const spellIndex = gs.players[playerKey].field.spells.findIndex(s => s.cardId === cardId && s.position === 'open');
-      if (spellIndex === -1) {
-        socket.emit('error', { message: 'Spell not found or not active' });
+      if (gs.phase !== 'main1' && gs.phase !== 'main2') {
+        socket.emit('error', { message: 'Can only activate spells during Main Phase' });
         return;
       }
 
-      const spell = gs.players[playerKey].field.spells[spellIndex];
-      const card = spell;
+      const fieldSpell = gs.players[playerKey].field.spells.find(s => s.cardId === cardId);
+      const handSpell = gs.players[playerKey].hand.find(s => s.cardId === cardId);
+
+      if (!fieldSpell && !handSpell) {
+        socket.emit('error', { message: 'Spell not found' });
+        return;
+      }
+      const card = fieldSpell || handSpell;
+      if (card.type !== 'spell') {
+        socket.emit('error', { message: 'Only Spell cards can be activated here' });
+        return;
+      }
+      if (fieldSpell?.faceDown) {
+        fieldSpell.faceDown = false;
+        fieldSpell.position = 'open';
+      }
+      if (handSpell) {
+        if (gs.players[playerKey].field.spells.length >= 5) {
+          socket.emit('error', { message: 'Maximum 5 Spell/Trap cards on field' });
+          return;
+        }
+        const setResult = setSpellTrap(gs, playerKey, cardId, false);
+        if (!setResult.success) {
+          socket.emit('error', { message: setResult.error });
+          return;
+        }
+      }
 
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
       const result = resolveSpellEffect(gs, playerKey, cardId);
@@ -542,6 +580,21 @@ io.on('connection', (socket) => {
 
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
 
+      const attackingMonster = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
+      const eventResult = processEventEffects(gs, 'attack_declared', playerKey, { attacker: attackingMonster, targetId });
+      if (eventResult.cancelAttack) {
+        io.to(room.code).emit('attack-result', {
+          attackerId,
+          targetId,
+          damage: 0,
+          destroyed: []
+        });
+        if (!checkWinCondition(gs, room.code, io)) {
+          io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+        }
+        return;
+      }
+
       const result = executeAttack(gs, playerKey, attackerId, targetId);
       if (!result.success) {
         socket.emit('error', { message: result.error });
@@ -550,6 +603,13 @@ io.on('connection', (socket) => {
 
       const attacker = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
       const target = gs.players[opponentKey].field.monsters.find(m => m.cardId === targetId);
+
+      if (result.damageToDefender > 0) {
+        processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: opponentKey, damage: result.damageToDefender });
+      }
+      if (result.damageToAttacker > 0) {
+        processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: playerKey, damage: result.damageToAttacker });
+      }
 
       gs.log.push(`${attacker?.name} attacked ${target?.name}`);
 
@@ -598,6 +658,21 @@ io.on('connection', (socket) => {
         return;
       }
 
+      const attackingMonster = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
+      const eventResult = processEventEffects(gs, 'attack_declared', playerKey, { attacker: attackingMonster, targetId: null });
+      if (eventResult.cancelAttack) {
+        io.to(room.code).emit('attack-result', {
+          attackerId,
+          targetId: null,
+          damage: 0,
+          destroyed: []
+        });
+        if (!checkWinCondition(gs, room.code, io)) {
+          io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+        }
+        return;
+      }
+
       const result = directAttack(gs, playerKey, attackerId);
       if (!result.success) {
         socket.emit('error', { message: result.error });
@@ -605,6 +680,9 @@ io.on('connection', (socket) => {
       }
 
       const attacker = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
+      if (result.damage > 0) {
+        processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: opponentKey, damage: result.damage });
+      }
       gs.log.push(`${attacker?.name} attacks ${gs.players[opponentKey].name}'s LP directly for ${result.damage} damage`);
 
       io.to(room.code).emit('attack-result', {
@@ -645,6 +723,7 @@ io.on('connection', (socket) => {
         socket.emit('error', { message: result.error });
         return;
       }
+      processEventEffects(gs, 'phase_start', gs.currentPlayer, { previousPhase: prevPhase, previousPlayer: prevPlayer });
       if (checkWinCondition(gs, room.code, io)) return;
 
       gs.log.push(`${gs.players[playerKey].name} ended ${gs.phase === 'battle' ? 'Battle Phase' : 'Phase'}`);
@@ -704,17 +783,21 @@ io.on('connection', (socket) => {
 
       // Loop through all remaining phases until 'end'
       while (gs.phase !== 'end') {
+        const previousPhase = gs.phase;
         const result = advancePhase(gs);
         if (!result.success) break;
+        processEventEffects(gs, 'phase_start', gs.currentPlayer, { previousPhase });
         io.to(room.code).emit('game-state', { state: serialize(gs, null) });
       }
 
       // Advance one more time to switch turns
+      const previousPhase = gs.phase;
       const result = advancePhase(gs);
       if (!result.success) {
         socket.emit('error', { message: result.error });
         return;
       }
+      processEventEffects(gs, 'phase_start', gs.currentPlayer, { previousPhase });
       if (checkWinCondition(gs, room.code, io)) return;
 
       const prevPlayer = playerKey;

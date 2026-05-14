@@ -243,6 +243,8 @@ function executeAttack(state, playerKey, attackerId, targetId) {
   return {
     success: true,
     damage: damageToDefender,
+    damageToAttacker,
+    damageToDefender,
     destroyed: [...(destroyedAttacker ? [attackerId] : []), ...(destroyedDefender ? [targetId] : [])]
   };
 }
@@ -310,6 +312,7 @@ function serialize(state, forSocketId) {
       lp: player.lp,
       // Show full hand only to owner
       hand: isOwner ? player.hand.map(c => ({ ...c, imgUrl: getCardImageUrl(c.cardId) })) : player.hand.map(() => ({ hidden: true })),
+      deck: isOwner ? player.deck.map(c => ({ ...c, imgUrl: getCardImageUrl(c.cardId) })) : player.deck.map(() => ({ hidden: true })),
       deckCount: player.deck.length,
       field: {
         monsters: player.field.monsters.map(m => ({
