@@ -11,9 +11,21 @@ function getSavedDeck() {
   }
 }
 
+function MenuButton({ children, onClick, disabled = false, tone = 'gold' }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`poc-title-menu-item poc-title-menu-${tone}`}
+    >
+      <span className="poc-menu-cursor">▶</span>
+      <span>{children}</span>
+    </button>
+  )
+}
+
 export default function Lobby({ onStartGame, connectionStatus }) {
   const isDev = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('dev') === 'true'
-  console.log('[LOBBY] isDev:', isDev, 'search:', typeof window !== 'undefined' ? window.location.search : 'no-window')
   const [mode, setMode] = useState(isDev ? 'yugi' : null) // 'yugi' or 'online'
   const [playerName, setPlayerName] = useState(isDev ? 'Jarvis' : '')
   const [roomCode, setRoomCode] = useState('')
@@ -80,180 +92,138 @@ export default function Lobby({ onStartGame, connectionStatus }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ygo-dark to-black flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        {/* Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-ygo-gold mb-2">
-            Yu-Gi-Oh!
-          </h1>
-          <h2 className="text-2xl font-bold text-yellow-300 mb-1">
-            Power of Chaos
-          </h2>
-          <h3 className="text-xl font-bold text-purple-400">
-            Yugi the Destiny
-          </h3>
+    <div className="poc-title-screen">
+      <div className="poc-title-eye poc-title-eye-left">𓂀</div>
+      <div className="poc-title-eye poc-title-eye-right">𓂀</div>
+      <div className="poc-title-sigil" />
+
+      <div className="poc-title-shell">
+        <div className="poc-title-logo">
+          <div className="poc-yugioh-wordmark">Yu-Gi-Oh!</div>
+          <div className="poc-power-wordmark">POWER OF CHAOS</div>
+          <div className="poc-yugi-wordmark">YUGI THE DESTINY</div>
         </div>
 
-        {/* Connection status */}
-        <div className="text-center mb-4">
-          <span className={`inline-block px-3 py-1 rounded-full text-sm ${
-            connectionStatus === 'connected' ? 'bg-green-600 text-white' :
-            connectionStatus === 'connecting' ? 'bg-yellow-600 text-white' :
-            'bg-red-600 text-white'
-          }`}>
-            {connectionStatus === 'connected' ? '● Connected' :
-             connectionStatus === 'connecting' ? '◐ Connecting...' :
-             '○ Disconnected'}
-          </span>
-        </div>
+        <div className="poc-title-main">
+          <aside className="poc-yugi-panel" aria-hidden="true">
+            <div className="poc-yugi-portrait">
+              <div className="poc-yugi-star poc-star-a" />
+              <div className="poc-yugi-star poc-star-b" />
+              <div className="poc-yugi-star poc-star-c" />
+              <div className="poc-yugi-face-title" />
+              <div className="poc-yugi-collar" />
+            </div>
+            <div className="poc-yugi-caption">DUELIST KINGDOM SYSTEM</div>
+          </aside>
 
-        {/* Player name input */}
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Enter your name..."
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-800 border border-ygo-gold rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-ygo-gold"
-            maxLength={20}
-          />
-        </div>
-
-        {!mode && (
-          <div className="space-y-3">
-            {/* Play vs Yugi (AI) */}
-            <button
-              onClick={() => setMode('yugi')}
-              className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white font-bold rounded-lg transition-all transform hover:scale-105"
-            >
-              Play vs Yugi (AI)
-            </button>
-
-            {/* Play Online */}
-            <button
-              onClick={() => setMode('online')}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white font-bold rounded-lg transition-all transform hover:scale-105"
-            >
-              Play Online vs Friend
-            </button>
-
-            <button
-              onClick={() => setMode('deck')}
-              className="w-full py-4 bg-gradient-to-r from-yellow-700 to-amber-900 hover:from-yellow-600 hover:to-amber-800 text-white font-bold rounded-lg transition-all transform hover:scale-105"
-            >
-              Deck Construction
-            </button>
-          </div>
-        )}
-
-        {mode === 'yugi' && (
-          <div className="space-y-3">
-            <button
-              onClick={handleStartYugi}
-              disabled={!playerName.trim() || !deckLegal}
-              className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-500 hover:to-purple-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Start Duel! {deckLegal ? '' : `(Deck needs ${Math.max(0, 40 - deckIds.length)} more)`}
-            </button>
-            <button
-              onClick={() => setMode(null)}
-              className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
-            >
-              ← Back
-            </button>
-          </div>
-        )}
-
-        {mode === 'deck' && (
-          <div className="deck-builder-panel">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-ygo-gold font-bold">Deck Construction</h4>
-              <span className={deckLegal ? 'text-green-300 text-sm' : 'text-red-300 text-sm'}>
-                {deckIds.length} cards / min 40 / max 3 copies
+          <section className="poc-title-panel">
+            <div className="poc-status-bar">
+              <span className={`poc-status-light ${connectionStatus === 'connected' ? 'connected' : connectionStatus === 'connecting' ? 'connecting' : 'offline'}`} />
+              <span>
+                {connectionStatus === 'connected' ? 'NETWORK ONLINE' :
+                 connectionStatus === 'connecting' ? 'CONNECTING...' :
+                 'NETWORK OFFLINE'}
               </span>
             </div>
-            <input
-              type="text"
-              placeholder="Search unlocked cards..."
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-900 border border-ygo-gold rounded text-white mb-3"
-            />
-            <div className="deck-builder-list">
-              {visibleCards.map(card => (
-                <div key={card.id} className="deck-builder-row">
-                  <div>
-                    <div className="font-bold text-white">{card.name}</div>
-                    <div className="text-xs text-gray-400 uppercase">{card.type}{card.atk !== undefined ? ` · ATK ${card.atk} / DEF ${card.def}` : ''}</div>
+
+            <label className="poc-name-frame">
+              <span>DUELIST NAME</span>
+              <input
+                type="text"
+                placeholder="ENTER YOUR NAME"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                maxLength={20}
+              />
+            </label>
+
+            {!mode && (
+              <nav className="poc-title-menu">
+                <MenuButton onClick={() => setMode('yugi')}>Duel Yugi</MenuButton>
+                <MenuButton onClick={() => setMode('deck')} tone="amber">Deck Construction</MenuButton>
+                <MenuButton onClick={() => setMode('online')} tone="blue">Network Duel</MenuButton>
+              </nav>
+            )}
+
+            {mode === 'yugi' && (
+              <div className="poc-submenu">
+                <div className="poc-submenu-title">DUEL YUGI</div>
+                <p className="poc-submenu-copy">Face Yugi in a Power of Chaos-style duel.</p>
+                <MenuButton onClick={handleStartYugi} disabled={!playerName.trim() || !deckLegal}>
+                  Start Duel {deckLegal ? '' : `(Need ${Math.max(0, 40 - deckIds.length)} cards)`}
+                </MenuButton>
+                <MenuButton onClick={() => setMode(null)} tone="dim">Back</MenuButton>
+              </div>
+            )}
+
+            {mode === 'deck' && (
+              <div className="poc-submenu poc-deck-submenu">
+                <div className="poc-submenu-title">DECK CONSTRUCTION</div>
+                <div className={deckLegal ? 'poc-deck-status legal' : 'poc-deck-status illegal'}>
+                  {deckIds.length} CARDS / MIN 40 / MAX 3 COPIES
+                </div>
+                <input
+                  type="text"
+                  placeholder="SEARCH UNLOCKED CARDS..."
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="poc-search-input"
+                />
+                <div className="deck-builder-list poc-title-deck-list">
+                  {visibleCards.map(card => (
+                    <div key={card.id} className="deck-builder-row poc-title-deck-row">
+                      <div>
+                        <div className="font-bold text-white">{card.name}</div>
+                        <div className="text-xs text-gray-400 uppercase">{card.type}{card.atk !== undefined ? ` · ATK ${card.atk} / DEF ${card.def}` : ''}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => removeCard(card.id)} className="deck-mini-btn">−</button>
+                        <span className="text-ygo-gold w-5 text-center">{deckCounts[card.id] || 0}</span>
+                        <button onClick={() => addCard(card.id)} disabled={(deckCounts[card.id] || 0) >= 3} className="deck-mini-btn">+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <MenuButton onClick={() => setMode(null)} tone="dim">Save & Back</MenuButton>
+              </div>
+            )}
+
+            {mode === 'online' && (
+              <div className="poc-submenu">
+                <div className="poc-submenu-title">NETWORK DUEL</div>
+                <div className="poc-online-grid">
+                  <div className="poc-online-box">
+                    <h4>Create Room</h4>
+                    <input
+                      type="text"
+                      placeholder="ROOM CODE"
+                      value={roomCode}
+                      onChange={(e) => setRoomCode(e.target.value.toUpperCase().slice(0, 4))}
+                      maxLength={4}
+                    />
+                    <button onClick={handleCreateRoom} disabled={!playerName.trim() || roomCode.length !== 4}>CREATE</button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => removeCard(card.id)} className="deck-mini-btn">−</button>
-                    <span className="text-ygo-gold w-5 text-center">{deckCounts[card.id] || 0}</span>
-                    <button onClick={() => addCard(card.id)} disabled={(deckCounts[card.id] || 0) >= 3} className="deck-mini-btn">+</button>
+                  <div className="poc-online-box">
+                    <h4>Join Room</h4>
+                    <input
+                      type="text"
+                      placeholder="ROOM CODE"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
+                      maxLength={4}
+                    />
+                    <button onClick={handleJoinRoom} disabled={!playerName.trim() || joinCode.length !== 4}>JOIN</button>
                   </div>
                 </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setMode(null)}
-              className="mt-3 w-full py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
-            >
-              Save & Back
-            </button>
-          </div>
-        )}
+                <MenuButton onClick={() => { setMode(null); setRoomCode(''); setJoinCode('') }} tone="dim">Back</MenuButton>
+              </div>
+            )}
+          </section>
+        </div>
 
-        {mode === 'online' && (
-          <div className="space-y-4">
-            {/* Create room */}
-            <div className="bg-gray-800/50 p-4 rounded-lg">
-              <h4 className="text-ygo-gold font-bold mb-3">Create Room</h4>
-              <input
-                type="text"
-                placeholder="Room code (4 letters)"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase().slice(0, 4))}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-ygo-gold mb-2"
-                maxLength={4}
-              />
-              <button
-                onClick={handleCreateRoom}
-                disabled={!playerName.trim() || roomCode.length !== 4}
-                className="w-full py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded transition-colors disabled:opacity-50"
-              >
-                Create Room
-              </button>
-            </div>
-
-            {/* Join room */}
-            <div className="bg-gray-800/50 p-4 rounded-lg">
-              <h4 className="text-ygo-blue font-bold mb-3">Join Room</h4>
-              <input
-                type="text"
-                placeholder="Enter room code"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:border-ygo-blue mb-2"
-                maxLength={4}
-              />
-              <button
-                onClick={handleJoinRoom}
-                disabled={!playerName.trim() || joinCode.length !== 4}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded transition-colors disabled:opacity-50"
-              >
-                Join Room
-              </button>
-            </div>
-
-            <button
-              onClick={() => { setMode(null); setRoomCode(''); setJoinCode('') }}
-              className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
-            >
-              ← Back
-            </button>
-          </div>
-        )}
+        <div className="poc-title-footer">
+          © KAIBA CORP SIMULATION SYSTEM · CARDS {cards.length || '---'} · DECK {deckIds.length}
+        </div>
       </div>
     </div>
   )
