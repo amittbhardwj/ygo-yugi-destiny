@@ -1845,3 +1845,447 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   0% { transform: scale(1) translateX(20px); }
   100% { transform: scale(1.1) translateX(-20px); }
 }
+
+
+/* ============================================
+   POWER OF CHAOS RETRO OVERRIDES
+   ============================================ */
+
+/* Main outer background: Dark purple/black space with radial gold glow */
+.game-board-root {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between;
+  align-items: stretch;
+  background: 
+    radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.08), transparent 50%),
+    radial-gradient(circle at 20% 30%, rgba(98, 0, 179, 0.15), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(77, 12, 128, 0.12), transparent 45%),
+    linear-gradient(135deg, #0e0517 0%, #06020a 50%, #020003 100%) !important;
+  border: 10px double #c6a34a !important; /* Thick classic double golden frame */
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.95) !important;
+  padding: 12px !important;
+  gap: 12px !important;
+}
+
+/* Slabs / Panels (Card Intel left, phase/deck right) */
+.left-panel, .right-panel, .phase-column {
+  background: linear-gradient(180deg, #1b0f26 0%, #0f0817 50%, #07030a 100%) !important;
+  border: 4px ridge #c6a34a !important;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 6px 12px rgba(0, 0, 0, 0.7) !important;
+  border-radius: 0 !important;
+}
+
+.left-panel {
+  padding: 8px !important;
+  width: 260px !important;
+}
+
+.right-panel {
+  padding: 8px !important;
+  width: 170px !important;
+}
+
+/* Duel Side Title */
+.duel-side-title, .phase-title {
+  font-family: 'Georgia', serif !important;
+  color: #ffd700 !important;
+  background: linear-gradient(to bottom, #ffe875 0%, #f7c72c 50%, #c9930b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.9));
+  font-weight: 900 !important;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px !important;
+  border-bottom: 2px groove #c6a34a;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  font-size: 1.1rem !important;
+}
+
+/* Card Detail Panel inside left-panel */
+.card-detail-panel {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.detail-inner-border {
+  border: 2px groove rgba(198, 163, 74, 0.5) !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.card-image-area {
+  border: 3px ridge #c6a34a !important;
+  border-radius: 0 !important;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.8);
+}
+
+/* Embossed gold info tags */
+.card-info-content {
+  font-family: 'Georgia', serif;
+}
+
+/* Tab buttons for detail panel */
+.detail-inner-border button {
+  background: #1c0f2b !important;
+  border: 2px outset #c6a34a !important;
+  color: #ffd700 !important;
+  font-family: 'Georgia', serif;
+  font-weight: bold;
+}
+
+.detail-inner-border button.bg-egyptian-gold {
+  background: linear-gradient(180deg, #d4af37 0%, #aa8620 100%) !important;
+  color: #000 !important;
+  border-style: inset !important;
+}
+
+/* Main Field Order and Layout */
+.main-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Field background */
+.field-egyptian {
+  border: 6px ridge #c6a34a !important;
+  background: 
+    radial-gradient(circle at center, rgba(0,0,0,0.3), rgba(0,0,0,0.7)),
+    linear-gradient(135deg, #1d3d2a 0%, #11261a 50%, #07100b 100%) !important; /* Green marble stone field background */
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.9), 0 8px 16px rgba(0,0,0,0.8) !important;
+}
+
+/* Compact Rectangular Zones */
+.poc-zone {
+  border-radius: 0 !important;
+  border: 2px solid #c6a34a !important; /* Gold border */
+  width: 78px !important;
+  height: 110px !important;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8) !important;
+}
+
+.monster-zone {
+  background: rgba(139, 69, 19, 0.25) !important; /* Deep brown wood/stone zone */
+  border-color: #c6a34a !important;
+}
+
+.spell-zone {
+  background: rgba(26, 77, 46, 0.25) !important; /* Deep green stone zone */
+  border-color: #7bb592 !important;
+}
+
+.poc-zone-selectable:hover {
+  background: rgba(212, 175, 55, 0.25) !important;
+  box-shadow: 0 0 10px #ffd700, inset 0 0 10px #ffd700 !important;
+}
+
+.poc-zone-label {
+  color: rgba(198, 163, 74, 0.4) !important;
+  font-family: 'Georgia', serif;
+  font-weight: bold;
+}
+
+/* Hand layout strip */
+.ygo-hand {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-end;
+  background: linear-gradient(180deg, #3d2212 0%, #1f0f07 100%) !important; /* Wooden/stone strip background */
+  border: 3px ridge #c6a34a !important;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9) !important;
+  height: 110px !important;
+  padding: 6px 12px !important;
+}
+
+.player-hand-area, .opponent-hand-area {
+  min-height: auto !important;
+  background: none !important;
+  border: none !important;
+}
+
+.hand-label {
+  font-family: 'Georgia', serif;
+  color: #ffd700;
+  text-shadow: 1px 1px 2px #000;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* Card overrides */
+.modern-card {
+  border-radius: 0 !important;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.6) !important;
+  border: 1px solid #000 !important;
+}
+
+.modern-card-face {
+  border-radius: 0 !important;
+}
+
+/* Hover scales cards */
+.ygo-hand > div {
+  margin-right: -18px;
+  transition: transform 0.15s ease-out, z-index 0.05s;
+}
+
+.ygo-hand-player > div:hover {
+  transform: translateY(-28px) scale(1.15) !important;
+  z-index: 100 !important;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.9) !important;
+}
+
+/* Top & Bottom Bars */
+.top-bar, .bottom-bar {
+  background: linear-gradient(180deg, #1b0f26 0%, #0f0817 100%) !important;
+  border: 3px ridge #c6a34a !important;
+  border-radius: 0 !important;
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.8) !important;
+}
+
+.duel-turn-chip {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 130px;
+  gap: 2px;
+  font-family: 'Georgia', serif;
+  color: #d4af37;
+  text-shadow: 1px 1px 2px #000;
+  text-transform: uppercase;
+}
+
+.duel-turn-chip span,
+.duel-turn-chip strong {
+  display: block;
+}
+
+.duel-turn-chip span {
+  font-size: 0.72rem;
+  letter-spacing: 1px;
+  color: #8c76a3;
+}
+
+.duel-turn-chip strong {
+  font-size: 1rem;
+  color: #ffd700;
+}
+
+/* Wing Frame Scarab motif for LP Display */
+.lp-wing-frame {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-name {
+  font-family: 'Georgia', serif;
+  color: #ffd700 !important;
+  text-shadow: 1px 1px 1px #000;
+  font-weight: bold;
+}
+
+.lp-value {
+  font-family: 'Georgia', serif;
+  color: #ffffff !important;
+  text-shadow: 0 0 8px #ffd700, 1px 1px 2px #000;
+  font-weight: 900;
+  font-size: 1.5rem !important;
+}
+
+/* Resource displays */
+.duel-resource {
+  background: #11071c !important;
+  border: 2px outset #c6a34a !important;
+  border-radius: 0 !important;
+  min-width: 52px !important;
+  padding: 2px 6px !important;
+}
+
+.duel-resource-count {
+  color: #ffd700 !important;
+  font-family: 'Georgia', serif;
+  font-weight: bold;
+}
+
+.duel-resource-label {
+  color: #8c76a3 !important;
+  font-family: 'Georgia', serif;
+}
+
+/* Deck Builder Side Panel in Right panel */
+.right-panel .mt-3 {
+  background: rgba(0, 0, 0, 0.4) !important;
+  border: 2px groove rgba(198, 163, 74, 0.5) !important;
+  border-radius: 0 !important;
+}
+
+.right-panel .mt-3 button {
+  border-radius: 0 !important;
+}
+
+/* Phase buttons */
+.phase-btn-circle {
+  border-radius: 50% !important;
+  border: 3px ridge #c6a34a !important;
+  background: radial-gradient(circle at 35% 25%, #42364c, #1f142b 62%, #08030c) !important;
+  color: #ff3333 !important;
+  text-shadow: 0 1px 0 #000;
+}
+
+.phase-btn-active, .phase-btn-m1-active, .phase-btn-bp-active {
+  background: radial-gradient(circle at 35% 25%, #fff19a, #d49f37 48%, #4a2f00 78%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 15px 4px #ffd700 !important;
+}
+
+/* Overlay & Command Windows */
+.game-overlay-box, .command-window {
+  background: linear-gradient(180deg, #2b180d 0%, #150b06 100%) !important;
+  border: 5px ridge #ffd700 !important;
+  box-shadow: 0 0 35px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(212, 175, 55, 0.2) !important;
+  border-radius: 0 !important;
+}
+
+.overlay-title, .command-title {
+  font-family: 'Georgia', serif;
+  color: #ffd700 !important;
+  text-shadow: 2px 2px 2px #000;
+}
+
+.command-option {
+  border-radius: 0 !important;
+  border: 2px outset #c6a34a !important;
+  background: #1c0e07 !important;
+  color: #ffd700 !important;
+  font-weight: bold;
+}
+
+.command-option:hover {
+  background: #381c0e !important;
+  color: #ffffff !important;
+}
+
+/* Tailwind compatibility utility mappings for YGO styling */
+.text-egyptian-gold {
+  color: #d4af37 !important;
+}
+.bg-egyptian-gold {
+  background-color: #d4af37 !important;
+}
+.border-egyptian-gold {
+  border-color: #d4af37 !important;
+}
+.border-egyptian-gold\/30 {
+  border-color: rgba(212, 175, 55, 0.3) !important;
+}
+.text-egyptian-dark {
+  color: #11071c !important;
+}
+.bg-egyptian-dark {
+  background-color: #11071c !important;
+}
+.hover\:bg-egyptian-gold\/20:hover {
+  background-color: rgba(212, 175, 55, 0.2) !important;
+}
+
+/* General button, input, and select rounded truncation for retro look */
+button, input, select {
+  border-radius: 0 !important;
+}
+
+/* Life points meter styling */
+.lp-meter {
+  display: block;
+  width: 140px;
+  height: 8px;
+  background: #11071c;
+  border: 1px solid #c6a34a;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.lp-meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #d4af37 0%, #ffd700 100%);
+  box-shadow: 0 0 6px #ffd700;
+  transition: width 0.3s ease-out;
+}
+
+/* Yugi Cut-in overrides */
+.yugi-themed-cut-in {
+  background: repeating-linear-gradient(
+    45deg,
+    #140226,
+    #140226 20px,
+    #2f004f 20px,
+    #2f004f 40px
+  ) !important;
+  border-top: 5px solid #d4af37 !important;
+  border-bottom: 5px solid #d4af37 !important;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 0 40px rgba(138, 43, 226, 0.7) !important;
+}
+
+.yugi-cut-in-puzzle {
+  font-size: 6rem;
+  color: #ffd700;
+  text-shadow: 0 0 15px #ffd700, 0 0 30px #d4af37;
+  margin-right: 1.5rem;
+  animation: puzzlePulse 1.5s infinite ease-in-out;
+}
+
+.yugi-cut-in-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.9);
+}
+
+.yugi-cut-in-title {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #ffd700;
+  letter-spacing: 6px;
+  line-height: 1.2;
+}
+
+.yugi-cut-in-subtitle {
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #ffffff;
+  margin-top: 0.25rem;
+  font-style: italic;
+  letter-spacing: 1px;
+}
+
+@keyframes puzzlePulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+/* Selectable Target Glow Highlights */
+.modern-card.card-selectable {
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.8);
+  animation: targetPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes targetPulse {
+  0% { box-shadow: 0 0 6px rgba(212, 175, 55, 0.6); }
+  50% { box-shadow: 0 0 16px rgba(212, 175, 55, 1); }
+  100% { box-shadow: 0 0 6px rgba(212, 175, 55, 0.6); }
+}
+
+.bg-amber-950\/95 {
+  background-color: rgba(69, 26, 3, 0.95) !important;
+}

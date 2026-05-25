@@ -55,6 +55,24 @@ function pickStrongest(monsters) {
   return monsters.reduce((best, card) => (!best || (card.atk || 0) > (best.atk || 0) ? card : best), null);
 }
 
+const EXODIA_IDS = ['m101', 'm102', 'm103', 'm104', 'm105'];
+function getBaseCardId(card) {
+  return card?.id || card?.cardId?.replace(/_[0-9]+$/, '') || null;
+}
+function checkExodiaWinInRules(state, playerKey) {
+  const player = state.players[playerKey];
+  if (!player) return false;
+  const handIds = new Set((player.hand || []).map(getBaseCardId).filter(Boolean));
+  const hasAll = EXODIA_IDS.every(id => handIds.has(id));
+  if (hasAll) {
+    state.winner = playerKey;
+    state.winReason = 'Exodia the Forbidden One';
+    state.log.push(`${player.name} assembled all five pieces of Exodia! ${player.name} wins!`);
+    return true;
+  }
+  return false;
+}
+
 function drawSafe(state, playerKey, count = 1) {
   const drawn = [];
   const player = state.players[playerKey];
@@ -62,6 +80,7 @@ function drawSafe(state, playerKey, count = 1) {
     drawn.push(player.deck.pop());
   }
   player.hand.push(...drawn);
+  checkExodiaWinInRules(state, playerKey);
   return drawn;
 }
 
@@ -117,15 +136,32 @@ function resolveSpellEffect(state, playerKey, spellCardId, context = {}) {
         state.log.push(`${p.name} activated ${cardName}! But the Monster Zone is full.`);
         break;
       }
-      const graveMonsters = p.grave.filter(c => c.type === 'monster');
-      const best = pickStrongest(graveMonsters);
-      if (best) {
-        p.grave = p.grave.filter(c => c.cardId !== best.cardId);
-        best.position = 'attack';
-        best.faceDown = false;
-        p.field.monsters.push(best);
+      const allGraveMonsters = [...p.grave, ...opponent.grave].filter(c => c.type === 'monster');
+      let target = null;
+      let targetSource = null;
+      if (context.targetId) {
+        target = allGraveMonsters.find(c => c.cardId === context.targetId);
+        if (target) {
+          targetSource = p.grave.some(c => c.cardId === target.cardId) ? p : opponent;
+        }
+      }
+      if (!target) {
+        const graveMonsters = p.grave.filter(c => c.type === 'monster');
+        target = pickStrongest(graveMonsters);
+        if (target) targetSource = p;
+      }
+      if (!target) {
+        const oppGraveMonsters = opponent.grave.filter(c => c.type === 'monster');
+        target = pickStrongest(oppGraveMonsters);
+        if (target) targetSource = opponent;
+      }
+      if (target && targetSource) {
+        targetSource.grave = targetSource.grave.filter(c => c.cardId !== target.cardId);
+        target.position = 'attack';
+        target.faceDown = false;
+        p.field.monsters.push(target);
         if (effect === 'special_summon_self_gy') p.lp = Math.max(0, p.lp - 800);
-        state.log.push(`${p.name} activated ${cardName}! ${best.name} was Special Summoned!`);
+        state.log.push(`${p.name} activated ${cardName}! Special Summoned ${target.name} from the Graveyard!`);
       } else {
         state.log.push(`${p.name} activated ${cardName}! But no monsters were in the Graveyard.`);
       }
@@ -140,7 +176,13 @@ function resolveSpellEffect(state, playerKey, spellCardId, context = {}) {
         state.log.push(`${p.name} activated ${cardName}! But the Monster Zone is full.`);
         break;
       }
-      const target = pickStrongest(opponent.field.monsters);
+      let target = null;
+      if (context.targetId) {
+        target = opponent.field.monsters.find(m => m.cardId === context.targetId);
+      }
+      if (!target) {
+        target = pickStrongest(opponent.field.monsters);
+      }
       if (target) {
         opponent.field.monsters = opponent.field.monsters.filter(m => m.cardId !== target.cardId);
         target.position = 'attack';
@@ -218,7 +260,14 @@ function resolveSpellEffect(state, playerKey, spellCardId, context = {}) {
     }
 
     case 'destroy_monster': {
-      const target = pickStrongest([...opponent.field.monsters, ...p.field.monsters]);
+      let target = null;
+      if (context.targetId) {
+        target = opponent.field.monsters.find(m => m.cardId === context.targetId) ||
+                 p.field.monsters.find(m => m.cardId === context.targetId);
+      }
+      if (!target) {
+        target = pickStrongest([...opponent.field.monsters, ...p.field.monsters]);
+      }
       if (target) {
         const owner = opponent.field.monsters.some(m => m.cardId === target.cardId) ? opponent : p;
         owner.field.monsters = owner.field.monsters.filter(m => m.cardId !== target.cardId);
@@ -442,19 +491,7 @@ function processEventEffects(state, event, playerKey, context = {}) {
     }
   }
 
-  if (event === 'summon') {
-    const trap = opponent.field.spells.find(s => s.type === 'trap' && s.faceDown && ['destroy_monster', 'destroy_1000atk_monster'].includes(s.effect) && (context.summonedMonster?.atk || 0) >= 1000);
-    if (trap) activateTrapByEffect(state, opponentKey, trap, event, context);
-  }
-
   if (event === 'attack_declared') {
-    const attacker = context.attacker;
-    const trap = opponent.field.spells.find(s => s.type === 'trap' && s.faceDown && ['destroy_attackers', 'reflect_battle'].includes(s.effect));
-    if (trap) {
-      activateTrapByEffect(state, opponentKey, trap, event, { ...context, attacker });
-      if (trap.effect === 'reflect_battle') result.cancelAttack = true;
-      if (trap.effect === 'destroy_attackers') result.cancelAttack = true;
-    }
     if (opponent.swordsTurns > 0) {
       result.cancelAttack = true;
       state.log.push(`Swords of Revealing Light prevented the attack!`);
@@ -499,4 +536,5 @@ export {
   checkTriggerEffects,
   processEventEffects,
   checkWinCondition,
+  activateTrapByEffect,
 };

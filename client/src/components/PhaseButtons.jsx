@@ -16,10 +16,7 @@ export default function PhaseButtons({ currentPhase, isYourTurn, onEndPhase }) {
   const normalizedPhase = normalizePhase(currentPhase)
   const currentIndex = PHASES.findIndex(p => p.key === normalizedPhase)
 
-  console.log('[PB] render', { currentPhase, isYourTurn, normalizedPhase, currentIndex, onEndPhase: typeof onEndPhase })
-
   const handleClick = (index) => {
-    console.log('[PB] handleClick', { index, isYourTurn, currentIndex, onEndPhase: typeof onEndPhase })
     if (isYourTurn && index === currentIndex && onEndPhase) {
       onEndPhase()
     }

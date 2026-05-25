@@ -29,12 +29,18 @@ function normalizePhase(phase) {
 }
 
 function LifePointsDisplay({ name, lp, isPlayer, damage = null }) {
+  const lpValue = lp || 0
+  const lpPercent = Math.max(0, Math.min(100, (lpValue / 8000) * 100))
+
   return (
-    <div className={`lp-wing-frame ${isPlayer ? 'lp-player' : 'lp-opponent'} ${damage ? 'damage-flash' : ''}`}>
+    <div className={`lp-wing-frame duel-lp-hud ${isPlayer ? 'lp-player' : 'lp-opponent'} ${damage ? 'damage-flash lp-damage-flash' : ''}`}>
       <div className="lp-content">
         <span className="lp-name">{name}</span>
-        <span className="lp-value">{lp?.toLocaleString() || 0}</span>
+        <span className="lp-value">{lpValue.toLocaleString()}</span>
         <span className="lp-label">LP</span>
+        <span className="lp-meter" aria-hidden="true">
+          <span style={{ width: `${lpPercent}%` }} />
+        </span>
       </div>
       {damage ? <span className="floating-damage">-{damage}</span> : null}
     </div>
@@ -74,6 +80,20 @@ function YugiGuide({ phase, isYourTurn }) {
       </div>
       <div className="yugi-speech">{prompt}</div>
     </div>
+  )
+}
+
+function DuelistResource({ label, count, tone = 'neutral', onClick }) {
+  return (
+    <button
+      type="button"
+      className={`duel-resource duel-resource-${tone}`}
+      onClick={onClick}
+      disabled={!onClick}
+    >
+      <span className="duel-resource-count">{count || 0}</span>
+      <span className="duel-resource-label">{label}</span>
+    </button>
   )
 }
 
@@ -123,10 +143,47 @@ function findFreshCard(card, gameState) {
   }
 
   for (const zone of zones) {
-    const fresh = zone?.find(c => (c.cardId || c.uid || c.id) === id)
+    const fresh = zone?.find(c => (c?.cardId || c?.uid || c?.id) === id)
     if (fresh) return fresh
   }
   return card
+}
+
+function TrapCountdown({ duration, onTimeUp }) {
+  const [seconds, setSeconds] = useState(duration)
+
+  useEffect(() => {
+    setSeconds(duration)
+    const interval = setInterval(() => {
+      setSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          if (onTimeUp) onTimeUp()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [duration, onTimeUp])
+
+  const percentage = (seconds / duration) * 100
+
+  return (
+    <div className="w-full px-4 mb-4" aria-live="polite">
+      <div className="flex justify-between items-center text-xs text-gray-400 mb-1">
+        <span>Response Time:</span>
+        <span className="font-bold text-ygo-gold animate-pulse">{seconds}s</span>
+      </div>
+      <div className="w-full bg-gray-950 rounded-full h-1.5 overflow-hidden border border-purple-950/40">
+        <div 
+          className="bg-gradient-to-r from-red-600 via-purple-600 to-ygo-gold h-full transition-all duration-1000 ease-linear" 
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  )
 }
 
 export default function GameBoard({
@@ -145,6 +202,8 @@ export default function GameBoard({
   emit,
   overlayMessage = null,
   duelAnimation = null,
+  trapPrompt = null,
+  waitingForTrap = false,
 }) {
   const [hoveredCard, setHoveredCard] = useState(null)
   const [showPlayModal, setShowPlayModal] = useState(false)
@@ -154,6 +213,85 @@ export default function GameBoard({
 
   const [showTrapReaction, setShowTrapReaction] = useState(false)
   const lastLogLengthRef = useRef(0)
+
+  // Target selection state
+  const [isTargetingMode, setIsTargetingMode] = useState(false)
+  const [targetingCard, setTargetingCard] = useState(null)
+  const [targetingType, setTargetingType] = useState('') // 'opponent_monster', 'any_monster', 'graveyard'
+  const [targetingMessage, setTargetingMessage] = useState('')
+
+  // Graveyard Viewer state
+  const [showGraveViewer, setShowGraveViewer] = useState(null) // 'player', 'opponent', or null
+
+  // Tribute selection state
+  const [tributeSelection, setTributeSelection] = useState(null) // { card, action, required, selectedIds: [] }
+
+  const { player, opponent } = gameState || {}
+
+  // LP Damage flashing states
+  const [prevPlayerLp, setPrevPlayerLp] = useState(player?.lp || 8000)
+  const [prevOpponentLp, setPrevOpponentLp] = useState(opponent?.lp || 8000)
+  const [playerDamageFlash, setPlayerDamageFlash] = useState(false)
+  const [opponentDamageFlash, setOpponentDamageFlash] = useState(false)
+
+  useEffect(() => {
+    if (player?.lp < prevPlayerLp) {
+      setPlayerDamageFlash(true)
+      const timer = setTimeout(() => setPlayerDamageFlash(false), 1000)
+      setPrevPlayerLp(player.lp)
+      return () => clearTimeout(timer)
+    } else if (player?.lp !== prevPlayerLp) {
+      setPrevPlayerLp(player?.lp || 8000)
+    }
+  }, [player?.lp, prevPlayerLp])
+
+  useEffect(() => {
+    if (opponent?.lp < prevOpponentLp) {
+      setOpponentDamageFlash(true)
+      const timer = setTimeout(() => setOpponentDamageFlash(false), 1000)
+      setPrevOpponentLp(opponent.lp)
+      return () => clearTimeout(timer)
+    } else if (opponent?.lp !== prevOpponentLp) {
+      setPrevOpponentLp(opponent?.lp || 8000)
+    }
+  }, [opponent?.lp, prevOpponentLp])
+
+  const requiresTarget = (card) => {
+    if (!card) return false
+    const effect = card.effect || ''
+    const id = card.id || ''
+    return (
+      effect === 'special_summon_grave' ||
+      effect === 'take_control_opponent_monster' || id === 's4' ||
+      effect === 'destroy_monster' || id === 's35'
+    )
+  }
+
+  const startTargeting = (card) => {
+    setIsTargetingMode(true)
+    setTargetingCard(card)
+    const effect = card.effect || ''
+    const id = card.id || ''
+    if (effect === 'special_summon_grave') {
+      setTargetingType('graveyard')
+      setTargetingMessage('Select a monster in either Graveyard to Special Summon.')
+      setShowGraveViewer('player')
+    } else if (effect === 'take_control_opponent_monster' || id === 's4') {
+      setTargetingType('opponent_monster')
+      setTargetingMessage("Select an opponent's monster to take control of.")
+    } else {
+      setTargetingType('any_monster')
+      setTargetingMessage('Select a monster on the field to destroy.')
+    }
+  }
+
+  const handleTargetSelected = (targetCard) => {
+    if (!isTargetingMode || !targetingCard) return
+    emit('activate-spell', { cardId: targetingCard.cardId, targetId: targetCard.cardId })
+    setIsTargetingMode(false)
+    setTargetingCard(null)
+    setShowGraveViewer(null)
+  }
 
   useEffect(() => {
     if (gameState?.log?.length > lastLogLengthRef.current) {
@@ -171,7 +309,6 @@ export default function GameBoard({
 
   if (!gameState) return null
 
-  const { player, opponent } = gameState
   const detailCard = findFreshCard(hoveredCard, gameState)
   const normalizedPhase = normalizePhase(currentPhase)
   const isAttackAnimation = duelAnimation?.kind === 'attack'
@@ -184,14 +321,47 @@ export default function GameBoard({
   // Use server phase (rawPhase) for playability checks to avoid double-normalization issues
   const canPlayCard = isYourTurn && (rawPhase === 'main1' || rawPhase === 'main2')
   const canBattle = isYourTurn && rawPhase === 'battle'
+  const turnLabel = isYourTurn ? 'Your Turn' : "Yugi's Turn"
 
   const handleMonsterClick = (card, index) => {
     setHoveredCard(card)
-    console.log('[handleMonsterClick] canBattle=', canBattle, 'isYourTurn=', isYourTurn, 'rawPhase=', rawPhase, 'selectedMonster=', selectedMonster, 'index=', index, 'card=', card?.name);
+    if (tributeSelection) {
+      const isSelected = tributeSelection.selectedIds.includes(card.cardId)
+      let newSelectedIds = [...tributeSelection.selectedIds]
+      if (isSelected) {
+        newSelectedIds = newSelectedIds.filter(id => id !== card.cardId)
+      } else {
+        newSelectedIds.push(card.cardId)
+      }
+
+      if (newSelectedIds.length === tributeSelection.required) {
+        onPlayCard(tributeSelection.card, tributeSelection.action, newSelectedIds)
+        setTributeSelection(null)
+      } else {
+        setTributeSelection({
+          ...tributeSelection,
+          selectedIds: newSelectedIds
+        })
+      }
+      return
+    }
+    if (isTargetingMode) {
+      if (targetingType === 'any_monster') {
+        handleTargetSelected(card)
+      }
+      return
+    }
     if (canBattle && selectedMonster === null) {
-      console.log('[handleMonsterClick] calling onSelectMonster(', index, ')');
       onSelectMonster(index)
     } else if (canBattle && selectedMonster !== null) {
+      if (selectedMonster === index && attackTargets.length > 0) {
+        onSelectMonster(null)
+        return
+      }
+      if (selectedMonster !== index && !attackTargets.includes(index)) {
+        onSelectMonster(index)
+        return
+      }
       if (selectedMonster === index && attackTargets.length === 0) {
         emit('direct-attack', { attackerId: card.cardId })
         onSelectMonster(null)
@@ -221,10 +391,20 @@ export default function GameBoard({
 
   const handleSpellClick = (card) => {
     setHoveredCard(card)
+    if (isTargetingMode) {
+      if (targetingType === 'any_monster') {
+        handleTargetSelected(card)
+      }
+      return
+    }
     if (!isYourTurn) return
     const type = (card?.type || '').toLowerCase()
     if (type === 'spell' && canPlayCard) {
-      onPlayCard(card, 'activate')
+      if (requiresTarget(card)) {
+        startTargeting(card)
+      } else {
+        onPlayCard(card, 'activate')
+      }
     } else if (type === 'trap') {
       onPlayCard(card, 'activate-trap')
     }
@@ -235,55 +415,61 @@ export default function GameBoard({
       <YugiGuide phase={rawPhase} isYourTurn={isYourTurn} />
       {/* Left Panel - Card Detail */}
       <div className="left-panel">
+        <div className="duel-side-title">Card Intel</div>
         <CardDetailPanel card={detailCard} />
-
-        {/* Phase buttons below card detail */}
-        <div className="phase-column">
-          <div className="phase-title">PHASE</div>
-          <PhaseButtons
-            currentPhase={rawPhase}
-            isYourTurn={isYourTurn}
-            onEndPhase={handleEndPhaseClick}
-          />
-          {/* Explicit End Phase / End Turn buttons */}
-          <div className="action-buttons">
-            <button
-              onClick={handleEndPhaseClick}
-              disabled={!isYourTurn}
-              className="action-btn action-btn-end-phase"
-              title="Advance to next phase"
-            >
-              END PHASE
-            </button>
-            <button
-              onClick={() => setConfirmEndTurn(true)}
-              disabled={!isYourTurn}
-              className="action-btn action-btn-end-turn"
-              title="End your turn"
-            >
-              END TURN
-            </button>
-          </div>
-        </div>
-
-        <DeckSidePanel cards={player.deck || []} onCardSelect={setHoveredCard} />
       </div>
 
       {/* Main Field Area */}
       <div className="main-field">
         <div className="field-watermark">𓂀</div>
 
+        {isTargetingMode && (
+          <div className="bg-red-950/90 border-b border-ygo-gold text-white p-3 text-center flex justify-between items-center z-40 relative animate-pulse">
+            <div className="flex items-center gap-2 justify-center w-full relative">
+              <span className="text-yellow-400 text-xl">🔺</span>
+              <span className="font-bold text-sm tracking-wide">{targetingMessage}</span>
+              <button
+                onClick={() => {
+                  setIsTargetingMode(false)
+                  setTargetingCard(null)
+                  setShowGraveViewer(null)
+                }}
+                className="absolute right-0 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-xs font-extrabold uppercase rounded border border-red-500 transition-colors cursor-pointer"
+              >
+                Cancel Target
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tributeSelection && (
+          <div className="bg-amber-950/95 border-b border-ygo-gold text-white p-3 text-center flex justify-between items-center z-40 relative animate-pulse">
+            <div className="flex items-center gap-2 justify-center w-full relative">
+              <span className="text-yellow-400 text-xl">🔱</span>
+              <span className="font-bold text-sm tracking-wide">
+                Select {tributeSelection.required - tributeSelection.selectedIds.length} monster(s) on your field to tribute for {tributeSelection.card.name}.
+              </span>
+              <button
+                onClick={() => {
+                  setTributeSelection(null)
+                }}
+                className="absolute right-0 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-xs font-extrabold uppercase rounded border border-red-500 transition-colors cursor-pointer"
+              >
+                Cancel Summon
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Top - Opponent Info */}
         <div className="top-bar">
-          <LifePointsDisplay name={opponent.name} lp={opponent.lp} isPlayer={false} damage={opponentDamage} />
-          <div className="deck-info">
-            <span className="deck-count">{opponent.deckCount || 0}</span>
-            <span className="deck-label">DECK</span>
+          <LifePointsDisplay name={opponent.name} lp={opponent.lp} isPlayer={false} damage={opponentDamageFlash ? (prevOpponentLp - opponent.lp) : null} />
+          <div className="duel-turn-chip">
+            <span>{turnLabel}</span>
+            <strong>{PHASE_MAP[normalizedPhase] || normalizedPhase}</strong>
           </div>
-          <div className="grave-info">
-            <span className="grave-count">{opponent.grave?.length || 0}</span>
-            <span className="grave-label">GRAVE</span>
-          </div>
+          <DuelistResource label="Deck" count={opponent.deckCount} tone="opponent" />
+          <DuelistResource label="Grave" count={opponent.grave?.length} tone="opponent" onClick={() => setShowGraveViewer('opponent')} />
         </div>
 
         {/* Opponent Hand */}
@@ -299,9 +485,19 @@ export default function GameBoard({
             spells={opponent.field?.spells || []}
             isOpponent={true}
             attackTargets={attackTargets}
+            selectable={isTargetingMode}
             onMonsterClick={(card, index) => {
-              if (canBattle && selectedMonster !== null && attackTargets.includes(index)) {
+              if (isTargetingMode) {
+                if (targetingType === 'opponent_monster' || targetingType === 'any_monster') {
+                  handleTargetSelected(card)
+                }
+              } else if (canBattle && selectedMonster !== null && attackTargets.includes(index)) {
                 onAttackTarget(index)
+              }
+            }}
+            onSpellClick={(card, index) => {
+              if (isTargetingMode && targetingType === 'any_monster') {
+                handleTargetSelected(card)
               }
             }}
             onCardHover={handleCardHover}
@@ -324,26 +520,21 @@ export default function GameBoard({
             isOpponent={false}
             selectedMonster={selectedMonster}
             attackTargets={attackTargets}
-            selectable={canPlayCard || canBattle}
+            selectable={canPlayCard || canBattle || isTargetingMode || !!tributeSelection}
             onMonsterClick={handleMonsterClick}
             onSpellClick={handleSpellClick}
             onEmptySlotClick={() => {}}
             onCardHover={handleCardHover}
             duelAnimation={duelAnimation}
+            tributeSelectedIds={tributeSelection ? tributeSelection.selectedIds : []}
           />
         </div>
 
         {/* Bottom - Player Info */}
         <div className="bottom-bar">
-          <LifePointsDisplay name={player.name} lp={player.lp} isPlayer={true} />
-          <div className="deck-info">
-            <span className="deck-count">{player.deckCount || 0}</span>
-            <span className="deck-label">DECK</span>
-          </div>
-          <div className="grave-info">
-            <span className="grave-count">{player.grave?.length || 0}</span>
-            <span className="grave-label">GRAVE</span>
-          </div>
+          <LifePointsDisplay name={player.name} lp={player.lp} isPlayer={true} damage={playerDamageFlash ? (prevPlayerLp - player.lp) : null} />
+          <DuelistResource label="Deck" count={player.deckCount} tone="player" />
+          <DuelistResource label="Grave" count={player.grave?.length} tone="player" onClick={() => setShowGraveViewer('player')} />
         </div>
 
         {/* Player Hand - kept at the very bottom like Power of Chaos */}
@@ -357,6 +548,37 @@ export default function GameBoard({
           />
           <div className="hand-label">YOUR HAND ({player.hand?.length || 0})</div>
         </div>
+      </div>
+
+      <div className="right-panel">
+        <div className="phase-column">
+          <div className="phase-title">Duel Phase</div>
+          <PhaseButtons
+            currentPhase={rawPhase}
+            isYourTurn={isYourTurn}
+            onEndPhase={handleEndPhaseClick}
+          />
+          <div className="action-buttons">
+            <button
+              onClick={handleEndPhaseClick}
+              disabled={!isYourTurn}
+              className="action-btn action-btn-end-phase"
+              title="Advance to next phase"
+            >
+              NEXT PHASE
+            </button>
+            <button
+              onClick={() => setConfirmEndTurn(true)}
+              disabled={!isYourTurn}
+              className="action-btn action-btn-end-turn"
+              title="End your turn"
+            >
+              END TURN
+            </button>
+          </div>
+        </div>
+
+        <DeckSidePanel cards={player.deck || []} onCardSelect={setHoveredCard} />
       </div>
 
       {/* Game Overlay */}
@@ -397,6 +619,34 @@ export default function GameBoard({
           card={pendingPlayCard}
           onSummon={() => {
             const cardType = (pendingPlayCard.type || '').toLowerCase()
+            if (cardType === 'monster') {
+              const level = pendingPlayCard.level || 0
+              const requiredTributes = level >= 7 ? 2 : (level >= 5 ? 1 : 0)
+              if (requiredTributes > 0) {
+                const playerMonsters = player.field.monsters.filter(Boolean)
+                if (playerMonsters.length < requiredTributes) {
+                  alert(`Not enough monsters on the field to tribute for ${pendingPlayCard.name}! (Requires ${requiredTributes})`)
+                  setShowPlayModal(false)
+                  setPendingPlayCard(null)
+                  return
+                }
+                setTributeSelection({
+                  card: pendingPlayCard,
+                  action: 'summon',
+                  required: requiredTributes,
+                  selectedIds: []
+                })
+                setShowPlayModal(false)
+                setPendingPlayCard(null)
+                return
+              }
+            }
+            if (cardType === 'spell' && requiresTarget(pendingPlayCard)) {
+              startTargeting(pendingPlayCard)
+              setShowPlayModal(false)
+              setPendingPlayCard(null)
+              return
+            }
             const action = cardType === 'spell' || cardType === 'trap'
               ? 'activate'
               : 'summon'
@@ -405,6 +655,29 @@ export default function GameBoard({
             setPendingPlayCard(null)
           }}
           onSet={() => {
+            const cardType = (pendingPlayCard.type || '').toLowerCase()
+            if (cardType === 'monster') {
+              const level = pendingPlayCard.level || 0
+              const requiredTributes = level >= 7 ? 2 : (level >= 5 ? 1 : 0)
+              if (requiredTributes > 0) {
+                const playerMonsters = player.field.monsters.filter(Boolean)
+                if (playerMonsters.length < requiredTributes) {
+                  alert(`Not enough monsters on the field to tribute for ${pendingPlayCard.name}! (Requires ${requiredTributes})`)
+                  setShowPlayModal(false)
+                  setPendingPlayCard(null)
+                  return
+                }
+                setTributeSelection({
+                  card: pendingPlayCard,
+                  action: 'set',
+                  required: requiredTributes,
+                  selectedIds: []
+                })
+                setShowPlayModal(false)
+                setPendingPlayCard(null)
+                return
+              }
+            }
             onPlayCard(pendingPlayCard, 'set')
             setShowPlayModal(false)
             setPendingPlayCard(null)
@@ -419,8 +692,143 @@ export default function GameBoard({
       {/* Character Reaction Cut-in */}
       {showTrapReaction && (
         <div className="reaction-cut-in-overlay">
-          <div className="reaction-cut-in">
-            <img src="/joey-reaction.png" alt="Reaction" className="reaction-image" />
+          <div className="reaction-cut-in yugi-themed-cut-in flex items-center justify-center">
+            <div className="yugi-cut-in-puzzle animate-pulse">𓂀</div>
+            <div className="yugi-cut-in-content">
+              <div className="yugi-cut-in-title">TRAP ACTIVATED!</div>
+              <div className="yugi-cut-in-subtitle">"Not so fast! I activate my Trap!"</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Graveyard Viewer Modal */}
+      {showGraveViewer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
+          <div className="bg-ygo-dark border-2 border-ygo-gold rounded-xl p-6 shadow-2xl w-[90%] max-w-4xl max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4 border-b border-egyptian-gold/30 pb-2">
+              <h3 className="text-ygo-gold font-bold text-xl uppercase">
+                {showGraveViewer === 'player' ? 'Your Graveyard' : "Opponent's Graveyard"} ({
+                  (showGraveViewer === 'player' ? player.grave : opponent.grave)?.length || 0
+                } cards)
+              </h3>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowGraveViewer(showGraveViewer === 'player' ? 'opponent' : 'player')}
+                  className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-ygo-gold font-bold border border-ygo-gold rounded text-xs transition-colors"
+                >
+                  Switch to {showGraveViewer === 'player' ? "Opponent's" : "Your"} Grave
+                </button>
+                <button
+                  onClick={() => setShowGraveViewer(null)}
+                  className="text-gray-400 hover:text-white font-bold text-lg"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {isTargetingMode && targetingType === 'graveyard' && (
+              <div className="bg-amber-950/80 text-yellow-300 p-2.5 rounded text-sm text-center mb-4 border border-yellow-600/50">
+                🔺 <strong>Target Selection Mode:</strong> Click any monster in either graveyard to Special Summon it.
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto p-4 bg-black/40 rounded border border-gray-800/80">
+              {((showGraveViewer === 'player' ? player.grave : opponent.grave) || []).length === 0 ? (
+                <div className="text-gray-500 text-center py-12">No cards in Graveyard</div>
+              ) : (
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 justify-items-center">
+                  {((showGraveViewer === 'player' ? player.grave : opponent.grave) || []).map((card, idx) => {
+                    const isMonster = (card.type || '').toLowerCase() === 'monster'
+                    const isSelectableTarget = isTargetingMode && targetingType === 'graveyard' && isMonster
+
+                    return (
+                      <div
+                        key={card.cardId || card.uid || idx}
+                        className={`flex flex-col items-center p-1 rounded transition-all ${
+                          isSelectableTarget ? 'cursor-pointer scale-100 hover:scale-105 border border-yellow-500 bg-yellow-500/10' : ''
+                        }`}
+                        onClick={() => {
+                          if (isSelectableTarget) {
+                            handleTargetSelected(card)
+                          }
+                        }}
+                      >
+                        <Card
+                          card={card}
+                          faceDown={false}
+                          size="hand"
+                          onHover={handleCardHover}
+                        />
+                        <span className="text-[10px] text-gray-400 mt-1 truncate w-16 text-center" title={card.name}>{card.name}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowGraveViewer(null)}
+              className="mt-6 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded font-bold transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Trap Activation Prompt Modal */}
+      {trapPrompt && (
+        <div className="command-overlay z-50">
+          <div className="command-window min-w-[320px] max-w-[450px]">
+            <div className="command-title text-ygo-gold tracking-widest font-extrabold animate-pulse">
+              {trapPrompt.event === 'counter-trap' ? 'COUNTER TRAP?' : 'ACTIVATE TRAP?'}
+            </div>
+            <div className="text-gray-300 text-xs text-center px-4 mb-4 leading-relaxed">
+              {trapPrompt.event === 'counter-trap'
+                ? `Opponent is activating ${trapPrompt.triggerCard?.name || 'a Trap'}! Choose a Counter-Trap to negate it:`
+                : 'Your opponent declared an attack or summon! Choose a Trap Card to activate in response:'
+              }
+            </div>
+
+            {trapPrompt.timeout && (
+              <TrapCountdown duration={trapPrompt.timeout} />
+            )}
+
+            <div className="flex flex-col gap-2.5 max-h-56 overflow-y-auto px-2 mb-4">
+              {trapPrompt.traps.map(trap => (
+                <button
+                  key={trap.cardId}
+                  className="command-option text-left px-4 py-3 bg-purple-950/80 hover:bg-purple-900 border border-purple-500 hover:border-ygo-gold text-white font-bold rounded flex flex-col gap-1 transition-all"
+                  onClick={() => {
+                    emit('resolve-trap-prompt', { activate: true, cardId: trap.cardId })
+                  }}
+                >
+                  <span className="text-ygo-gold text-sm">🔮 {trap.name}</span>
+                  <span className="text-gray-400 text-[10px] font-normal leading-tight">{trap.description}</span>
+                </button>
+              ))}
+            </div>
+            <button
+              className="command-option w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded font-semibold transition-colors cursor-pointer"
+              onClick={() => {
+                emit('resolve-trap-prompt', { activate: false })
+              }}
+            >
+              PASS (Cancel)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Waiting for Opponent response overlay */}
+      {waitingForTrap && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-ygo-dark/95 border-2 border-ygo-gold p-6 rounded-xl shadow-2xl flex flex-col items-center gap-4 animate-pulse">
+            <div className="w-10 h-10 border-4 border-ygo-gold border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-ygo-gold font-bold text-sm tracking-wide">Waiting for opponent response...</span>
           </div>
         </div>
       )}

@@ -56,9 +56,15 @@ const CARD_IMAGE_MAP = {
   'Kappa': '/card-art/kappa.png',
 }
 
-function getCardImage(card) {
-  if (card?.imgUrl) return card.imgUrl
-  return CARD_IMAGE_MAP[card?.name] || null
+const getLocalCardArtUrl = (cardName) => {
+  if (!cardName) return null
+  const formatted = cardName.toLowerCase()
+    .replace(/['.]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+  return `/card-art/${formatted}.png`
 }
 
 function AttributeDot({ attribute }) {
@@ -85,6 +91,25 @@ function LevelStars({ level }) {
 
 export default function CardDetailPanel({ card, onClose }) {
   const [selectedTab, setSelectedTab] = useState('info') // 'info' or 'status'
+  
+  const name = card?.name || ''
+  const localUrl = getLocalCardArtUrl(name)
+  const remoteUrl = card?.imgUrl || (card?.id ? `https://storage.googleapis.com/ygoprodeck.com/pics/${card.id}.jpg` : null)
+  const [imgSrc, setImgSrc] = useState(localUrl || remoteUrl)
+
+  useEffect(() => {
+    const lUrl = getLocalCardArtUrl(card?.name)
+    const rUrl = card?.imgUrl || (card?.id ? `https://storage.googleapis.com/ygoprodeck.com/pics/${card.id}.jpg` : null)
+    setImgSrc(lUrl || rUrl)
+  }, [card])
+
+  const handleImageError = () => {
+    if (imgSrc === localUrl && remoteUrl && localUrl !== remoteUrl) {
+      setImgSrc(remoteUrl)
+    } else {
+      setImgSrc(null)
+    }
+  }
 
   if (!card) {
     return (
@@ -103,11 +128,10 @@ export default function CardDetailPanel({ card, onClose }) {
     )
   }
 
-  const { name, attribute, level, atk, def, description, species } = card
+  const { attribute, level, atk, def, description, species } = card
   const rawType = card.type || ''
   const normalizedType = rawType.toLowerCase()
   const displayType = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1).toLowerCase() : 'Unknown'
-  const cardImage = getCardImage(card)
   const isSpell = normalizedType === 'spell'
   const isTrap = normalizedType === 'trap'
   const isMonster = !isSpell && !isTrap
@@ -120,13 +144,13 @@ export default function CardDetailPanel({ card, onClose }) {
       <div className="detail-inner-border">
         {/* Card image display */}
         <div className="card-image-area" style={{ borderColor: typeColor }}>
-          {cardImage ? (
+          {imgSrc ? (
             <img
               key={card.cardId || card.uid || name}
-              src={cardImage}
+              src={imgSrc}
               alt={name}
               className="card-detail-image"
-              onError={(e) => { e.currentTarget.style.visibility = 'hidden' }}
+              onError={handleImageError}
             />
           ) : (
             <div className="card-detail-placeholder" style={{ background: typeColor }}>

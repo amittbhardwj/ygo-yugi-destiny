@@ -83,6 +83,15 @@ function gameReducer(state, action) {
     case 'CLEAR_EXODIA_ANIMATION':
       return { ...state, exodiaAnimation: null }
 
+    case 'SET_TRAP_PROMPT':
+      return { ...state, trapPrompt: action.payload }
+
+    case 'SET_WAITING_FOR_TRAP':
+      return { ...state, waitingForTrap: action.payload }
+
+    case 'RESOLVE_TRAP_PROMPT':
+      return { ...state, trapPrompt: null, waitingForTrap: false }
+
     default:
       return state
   }
@@ -127,6 +136,8 @@ const initialState = {
   duelAnimation: null,
   coinFlip: null,
   exodiaAnimation: null,
+  trapPrompt: null,
+  waitingForTrap: false,
 }
 
 export default function App() {
@@ -215,9 +226,52 @@ export default function App() {
 
       case 'action_result':
         if (data?.success) {
-          dispatch({ type: 'SET_DUEL_ANIMATION', payload: { kind: 'command', message: data.message, id: Date.now() } })
-          setTimeout(() => dispatch({ type: 'CLEAR_DUEL_ANIMATION' }), 900)
+          let msg = data.message || '';
+          let displayMsg = msg;
+          if (msg.includes('Summoned')) {
+            displayMsg = 'SUMMON!';
+          } else if (msg.includes('Set')) {
+            displayMsg = 'CARD SET';
+          } else if (msg.includes('Activated')) {
+            if (msg.toLowerCase().includes('trap')) {
+              displayMsg = 'TRAP CARD ACTIVATED!';
+            } else {
+              displayMsg = 'SPELL CARD ACTIVATED!';
+            }
+          }
+          dispatch({ type: 'SET_DUEL_ANIMATION', payload: { kind: 'command', message: displayMsg, id: Date.now() } });
+          setTimeout(() => dispatch({ type: 'CLEAR_DUEL_ANIMATION' }), 950);
         }
+        break
+
+      case 'yugi_action':
+        const act = data?.action || {};
+        let yugiMsg = '';
+        if (act.type === 'summon') {
+          yugiMsg = act.position === 'defense' ? 'CARD SET' : 'SUMMON!';
+        } else if (act.type === 'set-trap') {
+          yugiMsg = 'CARD SET';
+        } else if (act.type === 'spell') {
+          yugiMsg = 'SPELL CARD ACTIVATED!';
+        } else if (act.type === 'flip') {
+          yugiMsg = 'FLIP SUMMON!';
+        }
+        if (yugiMsg) {
+          dispatch({ type: 'SET_DUEL_ANIMATION', payload: { kind: 'command', message: yugiMsg, id: Date.now() } });
+          setTimeout(() => dispatch({ type: 'CLEAR_DUEL_ANIMATION' }), 950);
+        }
+        break
+
+      case 'trap_prompt':
+        dispatch({ type: 'SET_TRAP_PROMPT', payload: data });
+        break
+
+      case 'waiting_for_trap':
+        dispatch({ type: 'SET_WAITING_FOR_TRAP', payload: true });
+        break
+
+      case 'trap_prompt_resolved':
+        dispatch({ type: 'RESOLVE_TRAP_PROMPT' });
         break
 
       case 'attack_result':
@@ -282,14 +336,14 @@ export default function App() {
   }, [emit])
 
   // handlePlayCard handles different card play types from GameBoard
-  const handlePlayCard = useCallback((card, actionType) => {
-    console.log('[HPC] handlePlayCard', { card: card?.name || card, cardId: card?.cardId, actionType })
+  const handlePlayCard = useCallback((card, actionType, tributeIds = []) => {
+    console.log('[HPC] handlePlayCard', { card: card?.name || card, cardId: card?.cardId, actionType, tributeIds })
     if (actionType === 'summon') {
-      emit('play-card', { cardId: card.cardId, position: 'attack' })
+      emit('play-card', { cardId: card.cardId, position: 'attack', tributeIds })
     } else if (actionType === 'set') {
       // Spell/Trap cards use set-spell-trap; monsters use play-card
       if (card.type === 'monster') {
-        emit('play-card', { cardId: card.cardId, position: 'defense' })
+        emit('play-card', { cardId: card.cardId, position: 'defense', tributeIds })
       } else {
         emit('set-spell-trap', { cardId: card.cardId, faceDown: true })
       }
@@ -424,6 +478,8 @@ export default function App() {
           emit={emit}
           overlayMessage={state.overlayMessage}
           duelAnimation={state.duelAnimation}
+          trapPrompt={state.trapPrompt}
+          waitingForTrap={state.waitingForTrap}
         />
       )}
     </div>

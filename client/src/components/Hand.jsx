@@ -3,16 +3,16 @@ import Card from './Card'
 export default function Hand({ cards, isOpponent = false, onCardClick, selectable = false, onHover }) {
   if (isOpponent) {
     return (
-      <div className="flex gap-2 p-2 bg-ygo-dark/50 rounded-lg overflow-x-auto hand-scroll">
+      <div className="ygo-hand ygo-hand-opponent hand-scroll">
         {cards.map((card, index) => (
-          <Card key={index} card={null} faceDown={true} />
+          <Card key={index} card={null} faceDown={true} size="hand" />
         ))}
       </div>
     )
   }
 
   return (
-    <div className="flex gap-2 p-2 bg-ygo-dark/50 rounded-lg overflow-x-auto hand-scroll">
+    <div className="ygo-hand ygo-hand-player hand-scroll">
       {cards.map((card, index) => (
         <Card
           key={card.id || index}

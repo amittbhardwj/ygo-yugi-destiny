@@ -8,10 +8,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 import CARDS from './cards.js';
 import { getCardImageUrl } from './cardImages.js';
-import { createGameState, drawCard, advancePhase, serialize, canAttack, executeAttack, directAttack, summonMonster, setSpellTrap } from './gameState.js';
-import { resolveSpellEffect, resolveTrapEffect, processEventEffects } from './rules.js';
-import { createRoom, joinRoom, getRoomBySocket, broadcastToRoom, broadcastToOpponent, getGameState, closeRoom } from './rooms.js';
-import { executeYugiTurn } from './ai.js';
+import { createGameState, drawCard, advancePhase, serialize, canAttack, executeAttack, directAttack, summonMonster, setSpellTrap, getActivatableTraps } from './gameState.js';
+import { resolveSpellEffect, resolveTrapEffect, processEventEffects, activateTrapByEffect } from './rules.js';
+import { createRoom, joinRoom, getRoomBySocket as _getRoomBySocket, broadcastToRoom, broadcastToOpponent, getGameState, closeRoom } from './rooms.js';
+import { executeYugiTurn, shouldAIActivateTrap } from './ai.js';
+
+function attachTrapResolvers(room) {
+  if (!room) return room;
+  room.resolvePendingActionWithoutTrap = () => resolvePendingActionWithoutTrap(room);
+  room.resolvePendingActionWithTrap = (trapCardId) => resolvePendingActionWithTrap(room, trapCardId);
+  return room;
+}
+
+function getRoomBySocket(socketId) {
+  const room = _getRoomBySocket(socketId);
+  return attachTrapResolvers(room);
+}
 
 const app = express();
 const server = createServer(app);
@@ -36,6 +48,7 @@ app.post('/api/create-room', (req, res) => {
       return res.status(400).json({ error: 'playerName required' });
     }
     const room = createRoom({ playerName, yugiMode: !!yugiMode });
+    attachTrapResolvers(room.state);
     res.json({ roomCode: room.roomCode });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -170,6 +183,236 @@ function finishAITurnIfNeeded(roomState) {
   io.to(roomState.code).emit('game-state', { state: serialize(gs, null) });
 }
 
+function executeOriginalAction(room, pending, trapApplied) {
+  const gs = room.gameState;
+  const { type, playerKey, cardId, position, tributeIds, attackerId, targetId, context } = pending;
+  const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
+
+  if (type === 'summon') {
+    const card = gs.players[playerKey].field.monsters.find(m => m.cardId === cardId);
+    
+    if (!trapApplied) {
+      processEventEffects(gs, 'summon', playerKey, { summonedMonster: card });
+      gs.log.push(`${gs.players[playerKey].name} summoned ${card ? card.name : 'Monster'}`);
+    } else {
+      gs.log.push(`${gs.players[playerKey].name} summoned ${card ? card.name : 'Monster'}, but ${trapApplied.name} was activated!`);
+    }
+    
+    gs.playerLocked = true;
+
+    io.to(room.code).emit('action-result', {
+      success: true,
+      message: trapApplied 
+        ? `${card ? card.name : 'Monster'} summoned, but ${trapApplied.name} was activated!`
+        : `Summoned ${card ? card.name : 'Monster'}`,
+      newState: serialize(gs, null)
+    });
+    io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+    scheduleAutoMainPhase(room);
+  } else if (type === 'attack' || type === 'direct-attack') {
+    const attacker = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
+    let cancelAttack = false;
+    if (trapApplied) {
+      if (trapApplied.effect === 'destroy_attackers' || trapApplied.effect === 'reflect_battle') {
+        cancelAttack = true;
+      }
+    } else {
+      const eventResult = processEventEffects(gs, 'attack_declared', playerKey, { attacker, targetId });
+      if (eventResult.cancelAttack) cancelAttack = true;
+    }
+
+    if (cancelAttack) {
+      io.to(room.code).emit('attack-result', {
+        attackerId,
+        targetId,
+        damage: 0,
+        destroyed: []
+      });
+      if (!checkWinCondition(gs, room.code, io)) {
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      }
+    } else {
+      if (type === 'attack') {
+        const result = executeAttack(gs, playerKey, attackerId, targetId);
+        if (result.success) {
+          const target = gs.players[opponentKey].field.monsters.find(m => m.cardId === targetId);
+
+          if (result.damageToDefender > 0) {
+            processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: opponentKey, damage: result.damageToDefender });
+          }
+          if (result.damageToAttacker > 0) {
+            processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: playerKey, damage: result.damageToAttacker });
+          }
+
+          gs.log.push(`${attacker?.name} attacked ${target?.name}`);
+
+          io.to(room.code).emit('attack-result', {
+            attackerId,
+            targetId,
+            damage: result.damage,
+            destroyed: result.destroyed || []
+          });
+          if (!checkWinCondition(gs, room.code, io)) {
+            io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+          }
+        }
+      } else {
+        const result = directAttack(gs, playerKey, attackerId);
+        if (result.success) {
+          if (result.damage > 0) {
+            processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: opponentKey, damage: result.damage });
+          }
+          gs.log.push(`${attacker?.name} attacks ${gs.players[opponentKey].name}'s LP directly for ${result.damage} damage`);
+
+          io.to(room.code).emit('attack-result', {
+            attackerId,
+            targetId: null,
+            damage: result.damage,
+            destroyed: []
+          });
+          if (!checkWinCondition(gs, room.code, io)) {
+            io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+          }
+        }
+      }
+    }
+  }
+}
+
+function resolvePendingActionWithoutTrap(room) {
+  if (!room || !room.pendingTrapResponse) return;
+  const pending = room.pendingTrapResponse;
+  room.pendingTrapResponse = null;
+  if (room.trapTimeout) {
+    clearTimeout(room.trapTimeout);
+    room.trapTimeout = null;
+  }
+
+  const gs = room.gameState;
+
+  if (pending.type === 'counter-trap') {
+    const { activatorKey, trapCardId, originalAction } = pending;
+    const trap = gs.players[activatorKey].field.spells.find(s => s.cardId === trapCardId);
+    if (trap) {
+      gs.players[activatorKey].field.spells = gs.players[activatorKey].field.spells.filter(s => s.cardId !== trapCardId);
+      gs.players[activatorKey].grave.push({ ...trap, faceDown: false });
+      activateTrapByEffect(gs, activatorKey, trap, originalAction.event, originalAction.context || {});
+    }
+    executeOriginalAction(room, originalAction, trap);
+  } else {
+    executeOriginalAction(room, pending, null);
+  }
+
+  io.to(room.code).emit('trap-prompt-resolved', {});
+}
+
+function resolvePendingActionWithTrap(room, trapCardId) {
+  if (!room || !room.pendingTrapResponse) return;
+  const pending = room.pendingTrapResponse;
+  
+  if (room.trapTimeout) {
+    clearTimeout(room.trapTimeout);
+    room.trapTimeout = null;
+  }
+
+  const gs = room.gameState;
+
+  if (pending.type === 'counter-trap') {
+    room.pendingTrapResponse = null;
+    const { activatorKey, trapCardId: originalTrapId, responderKey, originalAction } = pending;
+
+    const responder = gs.players[responderKey];
+    const counterTrap = responder.field.spells.find(s => s.cardId === trapCardId);
+    if (counterTrap) {
+      responder.field.spells = responder.field.spells.filter(s => s.cardId !== trapCardId);
+      responder.grave.push({ ...counterTrap, faceDown: false });
+    }
+
+    const activator = gs.players[activatorKey];
+    const originalTrap = activator.field.spells.find(s => s.cardId === originalTrapId);
+    if (originalTrap) {
+      activator.field.spells = activator.field.spells.filter(s => s.cardId !== originalTrapId);
+      activator.grave.push({ ...originalTrap, faceDown: false });
+    }
+
+    gs.log.push(`${responder.name} activated ${counterTrap?.name || 'Counter Trap'} to negate ${originalTrap?.name || 'Trap'}!`);
+    
+    executeOriginalAction(room, originalAction, null);
+    io.to(room.code).emit('trap-prompt-resolved', {});
+    return;
+  }
+
+  room.pendingTrapResponse = null;
+  const { type, playerKey, cardId, attackerId, targetId } = pending;
+  const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
+  const opponent = gs.players[opponentKey];
+
+  const trap = opponent.field.spells.find(s => s.cardId === trapCardId && s.type === 'trap' && s.faceDown);
+  if (!trap) {
+    room.pendingTrapResponse = pending;
+    resolvePendingActionWithoutTrap(room);
+    return;
+  }
+
+  const initiator = gs.players[playerKey];
+  const negateTraps = initiator.field.spells.filter(s => s.type === 'trap' && s.faceDown && (s.effect === 'negate_spell' || s.id === 't13' || s.cardId?.startsWith('t13')));
+
+  if (negateTraps.length > 0) {
+    const initiatorIsHuman = initiator.id && initiator.id !== 'YUGI_AI';
+    if (initiatorIsHuman) {
+      clearAutoPhaseTimeout(room.code);
+      room.pendingTrapResponse = {
+        type: 'counter-trap',
+        activatorKey: opponentKey,
+        responderKey: playerKey,
+        trapCardId,
+        originalAction: pending
+      };
+
+      io.to(initiator.id).emit('trap-prompt', {
+        event: 'counter-trap',
+        triggerCard: { name: trap.name, cardId: trap.cardId },
+        traps: negateTraps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+        timeout: 8
+      });
+
+      const activatorSocketId = opponent.id;
+      if (activatorSocketId && activatorSocketId !== 'YUGI_AI') {
+        io.to(activatorSocketId).emit('waiting-for-trap', {});
+      }
+
+      if (room.trapTimeout) clearTimeout(room.trapTimeout);
+      room.trapTimeout = setTimeout(() => {
+        resolvePendingActionWithoutTrap(room);
+      }, 8000);
+
+      io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      return;
+    } else {
+      const shouldAI = shouldAIActivateTrap(gs, negateTraps[0], 'counter-trap', { trapToNegate: trap });
+      if (shouldAI) {
+        initiator.field.spells = initiator.field.spells.filter(s => s.cardId !== negateTraps[0].cardId);
+        initiator.grave.push({ ...negateTraps[0], faceDown: false });
+
+        opponent.field.spells = opponent.field.spells.filter(s => s.cardId !== trapCardId);
+        opponent.grave.push({ ...trap, faceDown: false });
+
+        gs.log.push(`Yugi activated ${negateTraps[0].name} to negate ${trap.name}!`);
+        executeOriginalAction(room, pending, null);
+        io.to(room.code).emit('trap-prompt-resolved', {});
+        return;
+      }
+    }
+  }
+
+  opponent.field.spells = opponent.field.spells.filter(s => s.cardId !== trapCardId);
+  opponent.grave.push({ ...trap, faceDown: false });
+  activateTrapByEffect(gs, opponentKey, trap, pending.event, pending.context || {});
+
+  executeOriginalAction(room, pending, trap);
+  io.to(room.code).emit('trap-prompt-resolved', {});
+}
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log(`[Socket] Connected: ${socket.id}`);
@@ -182,6 +425,7 @@ io.on('connection', (socket) => {
         return;
       }
       const room = createRoom({ playerName, yugiMode: true, socketId: socket.id });
+      attachTrapResolvers(room.state);
       socket.join(room.roomCode);
       socket.roomCode = room.roomCode;
       socket.playerName = playerName;
@@ -234,6 +478,7 @@ io.on('connection', (socket) => {
         return;
       }
       const room = createRoom({ playerName, yugiMode: !!yugiMode, socketId: socket.id });
+      attachTrapResolvers(room.state);
       socket.join(room.roomCode);
       socket.roomCode = room.roomCode;
       socket.playerName = playerName;
@@ -344,7 +589,7 @@ io.on('connection', (socket) => {
   });
 
   // --- Play Card (summon monster) ---
-  socket.on('play-card', ({ cardId, position }) => {
+  socket.on('play-card', ({ cardId, position, tributeIds }) => {
     try {
       const room = getRoomBySocket(socket.id);
       if (!room || !room.gameState || !room.gameState.started) {
@@ -395,33 +640,128 @@ io.on('connection', (socket) => {
       }
 
       // Summon the monster
-      const result = summonMonster(gs, playerKey, cardId, position || 'defense');
+      const result = summonMonster(gs, playerKey, cardId, position || 'defense', tributeIds);
       if (!result.success) {
         socket.emit('error', { message: result.error });
         return;
       }
 
-      processEventEffects(gs, 'summon', playerKey, { summonedMonster: result.card });
+      // Check if opponent is human and has activatable traps
+      const opponent = gs.players[opponentKey];
+      const opponentIsHuman = opponent && opponent.id && opponent.id !== 'YUGI_AI';
+      const opponentIsAI = opponent && opponent.id === 'YUGI_AI';
+      const activatableTraps = getActivatableTraps(gs, 'summon', playerKey, { summonedMonster: result.card });
 
-      gs.log.push(`${gs.players[playerKey].name} summoned ${card.name}`);
-      gs.playerLocked = true;
+      if (opponentIsHuman && activatableTraps.length > 0) {
+        clearAutoPhaseTimeout(room.code);
+        room.pendingTrapResponse = {
+          type: 'summon',
+          event: 'summon',
+          playerKey,
+          cardId,
+          position,
+          tributeIds,
+          traps: activatableTraps,
+          context: { summonedMonster: result.card }
+        };
 
-      // Broadcast action result
-      io.to(room.code).emit('action-result', {
-        success: true,
-        message: `Summoned ${card.name}`,
-        newState: serialize(gs, null)
-      });
-      io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+        io.to(opponent.id).emit('trap-prompt', {
+          event: 'summon',
+          triggerCard: { name: result.card.name, cardId: result.card.cardId },
+          traps: activatableTraps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+          timeout: 8
+        });
 
-      console.log(`[Game] ${gs.players[playerKey].name} summoned ${card.name}`);
+        socket.emit('waiting-for-trap', {});
+
+        if (room.trapTimeout) clearTimeout(room.trapTimeout);
+        room.trapTimeout = setTimeout(() => {
+          resolvePendingActionWithoutTrap(room);
+        }, 8000);
+
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      } else {
+        let aiTrapToActivate = null;
+        if (opponentIsAI && activatableTraps.length > 0) {
+          for (const t of activatableTraps) {
+            if (shouldAIActivateTrap(gs, t, 'summon', { summonedMonster: result.card })) {
+              aiTrapToActivate = t;
+              break;
+            }
+          }
+        }
+
+        if (aiTrapToActivate) {
+          const humanNegateTraps = gs.players.player1.field.spells.filter(s => s.type === 'trap' && s.faceDown && (s.effect === 'negate_spell' || s.id === 't13' || s.cardId?.startsWith('t13')));
+          if (humanNegateTraps.length > 0) {
+            clearAutoPhaseTimeout(room.code);
+            room.pendingTrapResponse = {
+              type: 'counter-trap',
+              activatorKey: opponentKey,
+              responderKey: playerKey,
+              trapCardId: aiTrapToActivate.cardId,
+              originalAction: {
+                type: 'summon',
+                event: 'summon',
+                playerKey,
+                cardId,
+                position,
+                tributeIds,
+                context: { summonedMonster: result.card }
+              }
+            };
+
+            socket.emit('trap-prompt', {
+              event: 'counter-trap',
+              triggerCard: { name: aiTrapToActivate.name, cardId: aiTrapToActivate.cardId },
+              traps: humanNegateTraps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+              timeout: 8
+            });
+
+            if (room.trapTimeout) clearTimeout(room.trapTimeout);
+            room.trapTimeout = setTimeout(() => {
+              resolvePendingActionWithoutTrap(room);
+            }, 8000);
+
+            io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+            return;
+          } else {
+            opponent.field.spells = opponent.field.spells.filter(s => s.cardId !== aiTrapToActivate.cardId);
+            opponent.grave.push({ ...aiTrapToActivate, faceDown: false });
+            activateTrapByEffect(gs, opponentKey, aiTrapToActivate, 'summon', { summonedMonster: result.card });
+            
+            executeOriginalAction(room, {
+              type: 'summon',
+              playerKey,
+              cardId,
+              position,
+              tributeIds
+            }, aiTrapToActivate);
+            return;
+          }
+        }
+
+        processEventEffects(gs, 'summon', playerKey, { summonedMonster: result.card });
+
+        gs.log.push(`${gs.players[playerKey].name} summoned ${card.name}`);
+        gs.playerLocked = true;
+
+        io.to(room.code).emit('action-result', {
+          success: true,
+          message: `Summoned ${card.name}`,
+          newState: serialize(gs, null)
+        });
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+
+        console.log(`[Game] ${gs.players[playerKey].name} summoned ${card.name}`);
+      }
     } catch (err) {
       socket.emit('error', { message: err.message });
     }
   });
 
   // --- Set Spell/Trap ---
-  socket.on('set-spell-trap', ({ cardId, faceDown }) => {
+  socket.on('set-spell-trap', ({ cardId, faceDown, targetId }) => {
     try {
       const room = getRoomBySocket(socket.id);
       if (!room || !room.gameState || !room.gameState.started) {
@@ -470,7 +810,7 @@ io.on('connection', (socket) => {
       gs.playerLocked = true;
 
       if (faceDown === false && card.type === 'spell') {
-        const spellResult = resolveSpellEffect(gs, playerKey, cardId);
+        const spellResult = resolveSpellEffect(gs, playerKey, cardId, { targetId });
         if (!spellResult.success) {
           socket.emit('error', { message: spellResult.error });
           return;
@@ -489,7 +829,7 @@ io.on('connection', (socket) => {
   });
 
   // --- Activate Spell ---
-  socket.on('activate-spell', ({ cardId }) => {
+  socket.on('activate-spell', ({ cardId, targetId }) => {
     try {
       const room = getRoomBySocket(socket.id);
       if (!room || !room.gameState || !room.gameState.started) {
@@ -539,7 +879,7 @@ io.on('connection', (socket) => {
       }
 
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
-      const result = resolveSpellEffect(gs, playerKey, cardId);
+      const result = resolveSpellEffect(gs, playerKey, cardId, { targetId });
 
       if (!result.success) {
         socket.emit('error', { message: result.error });
@@ -634,48 +974,139 @@ io.on('connection', (socket) => {
       }
 
       const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
-
+      const opponent = gs.players[opponentKey];
+      const opponentIsHuman = opponent && opponent.id && opponent.id !== 'YUGI_AI';
+      
       const attackingMonster = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
-      const eventResult = processEventEffects(gs, 'attack_declared', playerKey, { attacker: attackingMonster, targetId });
-      if (eventResult.cancelAttack) {
+      const activatableTraps = getActivatableTraps(gs, 'attack_declared', playerKey, { attacker: attackingMonster, targetId });
+
+      if (opponentIsHuman && activatableTraps.length > 0) {
+        clearAutoPhaseTimeout(room.code);
+        room.pendingTrapResponse = {
+          type: 'attack',
+          event: 'attack_declared',
+          playerKey,
+          attackerId,
+          targetId,
+          traps: activatableTraps
+        };
+
+        io.to(opponent.id).emit('trap-prompt', {
+          event: 'attack',
+          triggerCard: { name: attackingMonster.name, cardId: attackingMonster.cardId },
+          traps: activatableTraps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+          timeout: 8
+        });
+
+        socket.emit('waiting-for-trap', {});
+
+        if (room.trapTimeout) clearTimeout(room.trapTimeout);
+        room.trapTimeout = setTimeout(() => {
+          resolvePendingActionWithoutTrap(room);
+        }, 8000);
+
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      } else {
+        const opponentIsAI = opponent && opponent.id === 'YUGI_AI';
+        let aiTrapToActivate = null;
+        if (opponentIsAI && activatableTraps.length > 0) {
+          for (const t of activatableTraps) {
+            if (shouldAIActivateTrap(gs, t, 'attack_declared', { attacker: attackingMonster, targetId })) {
+              aiTrapToActivate = t;
+              break;
+            }
+          }
+        }
+
+        if (aiTrapToActivate) {
+          const humanNegateTraps = gs.players.player1.field.spells.filter(s => s.type === 'trap' && s.faceDown && (s.effect === 'negate_spell' || s.id === 't13' || s.cardId?.startsWith('t13')));
+          if (humanNegateTraps.length > 0) {
+            clearAutoPhaseTimeout(room.code);
+            room.pendingTrapResponse = {
+              type: 'counter-trap',
+              activatorKey: opponentKey,
+              responderKey: playerKey,
+              trapCardId: aiTrapToActivate.cardId,
+              originalAction: {
+                type: 'attack',
+                event: 'attack_declared',
+                playerKey,
+                attackerId,
+                targetId,
+                context: { attacker: attackingMonster, targetId }
+              }
+            };
+
+            socket.emit('trap-prompt', {
+              event: 'counter-trap',
+              triggerCard: { name: aiTrapToActivate.name, cardId: aiTrapToActivate.cardId },
+              traps: humanNegateTraps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+              timeout: 8
+            });
+
+            if (room.trapTimeout) clearTimeout(room.trapTimeout);
+            room.trapTimeout = setTimeout(() => {
+              resolvePendingActionWithoutTrap(room);
+            }, 8000);
+
+            io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+            return;
+          } else {
+            opponent.field.spells = opponent.field.spells.filter(s => s.cardId !== aiTrapToActivate.cardId);
+            opponent.grave.push({ ...aiTrapToActivate, faceDown: false });
+            activateTrapByEffect(gs, opponentKey, aiTrapToActivate, 'attack_declared', { attacker: attackingMonster, targetId });
+            
+            executeOriginalAction(room, {
+              type: 'attack',
+              playerKey,
+              attackerId,
+              targetId
+            }, aiTrapToActivate);
+            return;
+          }
+        }
+
+        const eventResult = processEventEffects(gs, 'attack_declared', playerKey, { attacker: attackingMonster, targetId });
+        if (eventResult.cancelAttack) {
+          io.to(room.code).emit('attack-result', {
+            attackerId,
+            targetId,
+            damage: 0,
+            destroyed: []
+          });
+          if (!checkWinCondition(gs, room.code, io)) {
+            io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+          }
+          return;
+        }
+
+        const result = executeAttack(gs, playerKey, attackerId, targetId);
+        if (!result.success) {
+          socket.emit('error', { message: result.error });
+          return;
+        }
+
+        const attacker = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
+        const target = gs.players[opponentKey].field.monsters.find(m => m.cardId === targetId);
+
+        if (result.damageToDefender > 0) {
+          processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: opponentKey, damage: result.damageToDefender });
+        }
+        if (result.damageToAttacker > 0) {
+          processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: playerKey, damage: result.damageToAttacker });
+        }
+
+        gs.log.push(`${attacker?.name} attacked ${target?.name}`);
+
         io.to(room.code).emit('attack-result', {
           attackerId,
           targetId,
-          damage: 0,
-          destroyed: []
+          damage: result.damage,
+          destroyed: result.destroyed || []
         });
         if (!checkWinCondition(gs, room.code, io)) {
           io.to(room.code).emit('game-state', { state: serialize(gs, null) });
         }
-        return;
-      }
-
-      const result = executeAttack(gs, playerKey, attackerId, targetId);
-      if (!result.success) {
-        socket.emit('error', { message: result.error });
-        return;
-      }
-
-      const attacker = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
-      const target = gs.players[opponentKey].field.monsters.find(m => m.cardId === targetId);
-
-      if (result.damageToDefender > 0) {
-        processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: opponentKey, damage: result.damageToDefender });
-      }
-      if (result.damageToAttacker > 0) {
-        processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: playerKey, damage: result.damageToAttacker });
-      }
-
-      gs.log.push(`${attacker?.name} attacked ${target?.name}`);
-
-      io.to(room.code).emit('attack-result', {
-        attackerId,
-        targetId,
-        damage: result.damage,
-        destroyed: result.destroyed || []
-      });
-      if (!checkWinCondition(gs, room.code, io)) {
-        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
       }
     } catch (err) {
       socket.emit('error', { message: err.message });
@@ -713,44 +1144,152 @@ io.on('connection', (socket) => {
         return;
       }
 
+      const opponent = gs.players[opponentKey];
+      const opponentIsHuman = opponent && opponent.id && opponent.id !== 'YUGI_AI';
+      
       const attackingMonster = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
-      const eventResult = processEventEffects(gs, 'attack_declared', playerKey, { attacker: attackingMonster, targetId: null });
-      if (eventResult.cancelAttack) {
+      const activatableTraps = getActivatableTraps(gs, 'attack_declared', playerKey, { attacker: attackingMonster, targetId: null });
+
+      if (opponentIsHuman && activatableTraps.length > 0) {
+        clearAutoPhaseTimeout(room.code);
+        room.pendingTrapResponse = {
+          type: 'direct-attack',
+          event: 'attack_declared',
+          playerKey,
+          attackerId,
+          targetId: null,
+          traps: activatableTraps
+        };
+
+        io.to(opponent.id).emit('trap-prompt', {
+          event: 'attack',
+          triggerCard: { name: attackingMonster.name, cardId: attackingMonster.cardId },
+          traps: activatableTraps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+          timeout: 8
+        });
+
+        socket.emit('waiting-for-trap', {});
+
+        if (room.trapTimeout) clearTimeout(room.trapTimeout);
+        room.trapTimeout = setTimeout(() => {
+          resolvePendingActionWithoutTrap(room);
+        }, 8000);
+
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      } else {
+        const opponentIsAI = opponent && opponent.id === 'YUGI_AI';
+        let aiTrapToActivate = null;
+        if (opponentIsAI && activatableTraps.length > 0) {
+          for (const t of activatableTraps) {
+            if (shouldAIActivateTrap(gs, t, 'attack_declared', { attacker: attackingMonster, targetId: null })) {
+              aiTrapToActivate = t;
+              break;
+            }
+          }
+        }
+
+        if (aiTrapToActivate) {
+          const humanNegateTraps = gs.players.player1.field.spells.filter(s => s.type === 'trap' && s.faceDown && (s.effect === 'negate_spell' || s.id === 't13' || s.cardId?.startsWith('t13')));
+          if (humanNegateTraps.length > 0) {
+            clearAutoPhaseTimeout(room.code);
+            room.pendingTrapResponse = {
+              type: 'counter-trap',
+              activatorKey: opponentKey,
+              responderKey: playerKey,
+              trapCardId: aiTrapToActivate.cardId,
+              originalAction: {
+                type: 'direct-attack',
+                event: 'attack_declared',
+                playerKey,
+                attackerId,
+                targetId: null,
+                context: { attacker: attackingMonster, targetId: null }
+              }
+            };
+
+            socket.emit('trap-prompt', {
+              event: 'counter-trap',
+              triggerCard: { name: aiTrapToActivate.name, cardId: aiTrapToActivate.cardId },
+              traps: humanNegateTraps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+              timeout: 8
+            });
+
+            if (room.trapTimeout) clearTimeout(room.trapTimeout);
+            room.trapTimeout = setTimeout(() => {
+              resolvePendingActionWithoutTrap(room);
+            }, 8000);
+
+            io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+            return;
+          } else {
+            opponent.field.spells = opponent.field.spells.filter(s => s.cardId !== aiTrapToActivate.cardId);
+            opponent.grave.push({ ...aiTrapToActivate, faceDown: false });
+            activateTrapByEffect(gs, opponentKey, aiTrapToActivate, 'attack_declared', { attacker: attackingMonster, targetId: null });
+            
+            executeOriginalAction(room, {
+              type: 'direct-attack',
+              playerKey,
+              attackerId,
+              targetId: null
+            }, aiTrapToActivate);
+            return;
+          }
+        }
+
+        const eventResult = processEventEffects(gs, 'attack_declared', playerKey, { attacker: attackingMonster, targetId: null });
+        if (eventResult.cancelAttack) {
+          io.to(room.code).emit('attack-result', {
+            attackerId,
+            targetId: null,
+            damage: 0,
+            destroyed: []
+          });
+          if (!checkWinCondition(gs, room.code, io)) {
+            io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+          }
+          return;
+        }
+
+        const result = directAttack(gs, playerKey, attackerId);
+        if (!result.success) {
+          socket.emit('error', { message: result.error });
+          return;
+        }
+
+        const attacker = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
+        if (result.damage > 0) {
+          processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: opponentKey, damage: result.damage });
+        }
+        gs.log.push(`${attacker?.name} attacks ${gs.players[opponentKey].name}'s LP directly for ${result.damage} damage`);
+
         io.to(room.code).emit('attack-result', {
           attackerId,
           targetId: null,
-          damage: 0,
+          damage: result.damage,
           destroyed: []
         });
         if (!checkWinCondition(gs, room.code, io)) {
           io.to(room.code).emit('game-state', { state: serialize(gs, null) });
         }
-        return;
-      }
-
-      const result = directAttack(gs, playerKey, attackerId);
-      if (!result.success) {
-        socket.emit('error', { message: result.error });
-        return;
-      }
-
-      const attacker = gs.players[playerKey].field.monsters.find(m => m.cardId === attackerId);
-      if (result.damage > 0) {
-        processEventEffects(gs, 'battle_damage', playerKey, { damagedPlayerKey: opponentKey, damage: result.damage });
-      }
-      gs.log.push(`${attacker?.name} attacks ${gs.players[opponentKey].name}'s LP directly for ${result.damage} damage`);
-
-      io.to(room.code).emit('attack-result', {
-        attackerId,
-        targetId: null,
-        damage: result.damage,
-        destroyed: []
-      });
-      if (!checkWinCondition(gs, room.code, io)) {
-        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
       }
     } catch (err) {
       socket.emit('error', { message: err.message });
+    }
+  });
+
+  // --- Resolve Trap Prompt ---
+  socket.on('resolve-trap-prompt', ({ activate, cardId }) => {
+    try {
+      const room = getRoomBySocket(socket.id);
+      if (!room || !room.pendingTrapResponse) return;
+
+      if (activate && cardId) {
+        resolvePendingActionWithTrap(room, cardId);
+      } else {
+        resolvePendingActionWithoutTrap(room);
+      }
+    } catch (err) {
+      console.error('[Socket] Error in resolve-trap-prompt:', err);
     }
   });
 

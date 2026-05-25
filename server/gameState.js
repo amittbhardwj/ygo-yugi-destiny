@@ -136,7 +136,7 @@ function drawCard(state, playerKey) {
   return card;
 }
 
-function summonMonster(state, playerKey, cardId, position = 'defense') {
+function summonMonster(state, playerKey, cardId, position = 'defense', tributeIds = []) {
   const p = state.players[playerKey];
   const cardIndex = p.hand.findIndex(c => c.cardId === cardId);
   if (cardIndex === -1) {
@@ -155,16 +155,30 @@ function summonMonster(state, playerKey, cardId, position = 'defense') {
     if (p.field.monsters.length < requiredTributes) {
       return { success: false, error: `Requires ${requiredTributes} tributes for Level ${level}` };
     }
-    // Auto-tribute weakest monsters
-    // Create a sorted copy by ATK ascending
-    const sortedMonsters = [...p.field.monsters].sort((a, b) => (a.atk || 0) - (b.atk || 0));
-    const tributes = sortedMonsters.slice(0, requiredTributes);
+    
+    let tributes = [];
+    if (tributeIds && tributeIds.length > 0) {
+      if (tributeIds.length !== requiredTributes) {
+        return { success: false, error: `Invalid number of tributes selected: expected ${requiredTributes}` };
+      }
+      for (const tId of tributeIds) {
+        const monster = p.field.monsters.find(m => m.cardId === tId);
+        if (!monster) {
+          return { success: false, error: 'Selected tribute monster not found on field' };
+        }
+        tributes.push(monster);
+      }
+    } else {
+      // Auto-tribute weakest monsters (fallback / AI)
+      const sortedMonsters = [...p.field.monsters].sort((a, b) => (a.atk || 0) - (b.atk || 0));
+      tributes = sortedMonsters.slice(0, requiredTributes);
+    }
     
     // Remove tributes from field
     p.field.monsters = p.field.monsters.filter(m => !tributes.some(t => t.cardId === m.cardId));
     p.grave.push(...tributes.map(m => ({ ...m, faceDown: false })));
     
-    state.log.push(`${p.name} tributed ${tributes.length} monster(s) to summon ${card.name}`);
+    state.log.push(`${p.name} tributed ${tributes.length} monster(s) (${tributes.map(t => t.name).join(', ')}) to summon ${card.name}`);
   }
 
   // Actually remove from hand
@@ -388,6 +402,31 @@ function serialize(state, forSocketId) {
   };
 }
 
+function getActivatableTraps(gs, event, playerKey, context = {}) {
+  const opponentKey = playerKey === 'player1' ? 'player2' : 'player1';
+  const opponent = gs.players[opponentKey];
+  if (!opponent) return [];
+  
+  if (event === 'summon') {
+    return (opponent.field?.spells || []).filter(s => 
+      s.type === 'trap' && 
+      s.faceDown && 
+      ['destroy_monster', 'destroy_1000atk_monster'].includes(s.effect) && 
+      (context.summonedMonster?.atk || 0) >= 1000
+    );
+  }
+  
+  if (event === 'attack_declared') {
+    return (opponent.field?.spells || []).filter(s => 
+      s.type === 'trap' && 
+      s.faceDown && 
+      ['destroy_attackers', 'reflect_battle'].includes(s.effect)
+    );
+  }
+  
+  return [];
+}
+
 export {
   createGameState,
   drawCard,
@@ -404,4 +443,5 @@ export {
   hasAllExodiaPieces,
   checkExodiaWin,
   EXODIA_IDS,
+  getActivatableTraps,
 };

@@ -3,47 +3,25 @@
  * AI opponent logic for single-player mode
  */
 
-import { summonMonster, setSpellTrap, executeAttack, directAttack, advancePhase, drawCard, serialize } from './gameState.js';
-import { resolveSpellEffect } from './rules.js';
+import { summonMonster, setSpellTrap, executeAttack, directAttack, advancePhase, serialize, getActivatableTraps } from './gameState.js';
+import { resolveSpellEffect, processEventEffects } from './rules.js';
+import { rooms } from './rooms.js';
+import CARDS from './cards.js';
+
+async function waitForTrap(room) {
+  if (!room) return;
+  while (room.pendingTrapResponse) {
+    await delay(200);
+  }
+}
 
 const PHASES = ['draw', 'standby', 'main1', 'battle', 'main2', 'end'];
 
-const CARD_DATABASE = {
-  'm1':  { name: 'Dark Magician',            atk: 2500, def: 2100, level: 7, type: 'monster' },
-  'm2':  { name: 'Blue-Eyes White Dragon',   atk: 3000, def: 2500, level: 8, type: 'monster' },
-  'm3':  { name: 'Gaia The Fierce Knight',    atk: 2300, def: 2100, level: 7, type: 'monster' },
-  'm4':  { name: 'Summoned Skull',           atk: 2500, def: 1200, level: 6, type: 'monster' },
-  'm5':  { name: 'Ansato',                   atk: 1000, def: 1000, level: 4, type: 'monster' },
-  'm6':  { name: 'Cerebral',                atk: 800,  def: 2000, level: 4, type: 'monster' },
-  'm7':  { name: 'Feral Imp',               atk: 1300, def: 1000, level: 4, type: 'monster' },
-  'm8':  { name: 'Dragoner',                atk: 1100, def: 1600, level: 4, type: 'monster' },
-  'm9':  { name: 'Mystical Elf',            atk: 300,  def: 2500, level: 4, type: 'monster' },
-  'm10': { name: 'Haniwa',                  atk: 500,  def: 500,  level: 2, type: 'monster' },
-  's1':  { name: 'Dark Hole',                type: 'spell', effect: 'destroy_all_monsters' },
-  's2':  { name: 'Raigeki',                  type: 'spell', effect: 'destroy_opponent_monsters' },
-  's3':  { name: 'Monster Reborn',           type: 'spell', effect: 'special_summon_grave' },
-  's4':  { name: 'Change of Heart',          type: 'spell', effect: 'take_control' },
-  's5':  { name: 'Dian Keto',                type: 'spell', effect: 'heal_500' },
-  's6':  { name: 'Ookazi',                   type: 'spell', effect: 'damage_800' },
-  's7':  { name: 'The Hall of Dragon',       type: 'spell', effect: 'damage_1000' },
-  's8':  { name: 'Mysterious Sword',        type: 'spell', effect: 'boost_atk_500' },
-  't1':  { name: 'Trap Hole',               type: 'trap', effect: 'destroy_1000atk_monster' },
-  't2':  { name: 'Mirror Force',            type: 'trap', effect: 'destroy_attackers' },
-  't3':  { name: 'Ring of Destruction',    type: 'trap', effect: 'destroy_both_500' },
-};
-
-const MONSTER_PRIORITY = {
-  'm2': 100, // Blue-Eyes White Dragon
-  'm4': 90,  // Summoned Skull
-  'm3': 85,  // Gaia The Fierce Knight
-  'm1': 80,  // Dark Magician
-  'm7': 60,  // Feral Imp
-  'm8': 55,  // Dragoner
-  'm5': 50,  // Ansato
-  'm6': 45,  // Cerebral
-  'm10': 40, // Haniwa
-  'm9': 30,  // Mystical Elf
-};
+// Build CARD_DATABASE dynamically from shared CARDS
+const CARD_DATABASE = {};
+for (const card of CARDS) {
+  CARD_DATABASE[card.id] = card;
+}
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -54,8 +32,15 @@ function roll(chance) {
 }
 
 function getCardBase(cardId) {
+  if (!cardId) return null;
   const id = cardId.split('_')[0];
   return CARD_DATABASE[id] || null;
+}
+
+function isExodiaPiece(cardId) {
+  if (!cardId) return false;
+  const id = cardId.split('_')[0];
+  return ['m101', 'm102', 'm103', 'm104', 'm105'].includes(id);
 }
 
 function getMonsterAtk(card) {
@@ -71,7 +56,7 @@ function getMonsterDef(card) {
 function findMonsterInHand(hand) {
   return hand.filter(c => {
     const base = getCardBase(c.cardId);
-    return base && base.type === 'monster';
+    return base && base.type === 'monster' && !isExodiaPiece(c.cardId);
   });
 }
 
@@ -89,11 +74,13 @@ function findTrapInHand(hand) {
   });
 }
 
-function sortMonstersByPriority(monsters) {
+function sortMonstersByPriority(monsters, preferDef = false) {
   return [...monsters].sort((a, b) => {
-    const pa = MONSTER_PRIORITY[a.cardId.split('_')[0]] || 0;
-    const pb = MONSTER_PRIORITY[b.cardId.split('_')[0]] || 0;
-    return pb - pa;
+    const baseA = getCardBase(a.cardId);
+    const baseB = getCardBase(b.cardId);
+    const scoreA = preferDef ? (baseA?.def || 0) : (baseA?.atk || 0);
+    const scoreB = preferDef ? (baseB?.def || 0) : (baseB?.atk || 0);
+    return scoreB - scoreA;
   });
 }
 
@@ -148,6 +135,13 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
 
   // ---- MAIN PHASE 1 ----
   await delay(THINK_DELAY);
+
+  const oppMonsters = player.field.monsters.filter(Boolean);
+  const strongestOppAtk = oppMonsters.reduce((max, m) => {
+    const mAtk = m.position === 'attack' ? (m.atk || 0) : 0;
+    return mAtk > max ? mAtk : max;
+  }, 0);
+
   const availableTributes = ai.field.monsters.length;
   const summonable = findMonsterInHand(ai.hand).filter(c => {
     const base = getCardBase(c.cardId);
@@ -158,20 +152,70 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
     return true;
   });
 
-  if (summonable.length > 0) {
-    const best = sortMonstersByPriority(summonable)[0];
-    const result = summonMonster(gameState, AI_KEY, best.cardId, 'attack');
+  if (summonable.length > 0 && !ai.hasNormalSummoned) {
+    const bestInHandAtk = sortMonstersByPriority(summonable, false)[0];
+    const bestInHandDef = sortMonstersByPriority(summonable, true)[0];
+    
+    const baseAtk = getCardBase(bestInHandAtk.cardId);
+    const baseDef = getCardBase(bestInHandDef.cardId);
+    
+    let best = bestInHandAtk;
+    let position = 'attack';
+    
+    if ((baseDef?.def || 0) > (baseAtk?.atk || 0) || strongestOppAtk > (baseAtk?.atk || 0) || ai.lp < 2000) {
+      best = bestInHandDef;
+      position = 'defense';
+    }
+
+    const result = summonMonster(gameState, AI_KEY, best.cardId, position);
     if (result.success) {
-      const action = { type: 'summon', cardId: best.cardId, position: 'attack' };
-      gameState.log.push(`Yugi summoned ${best.name}`);
-      if (reportAction(emitFn, action)) return;
-      await delay(THINK_DELAY);
+      const action = { type: 'summon', cardId: best.cardId, position };
+      const displayPos = position === 'defense' ? 'face-down Defense Position' : 'Attack Position';
+      gameState.log.push(`Yugi summoned ${best.name} in ${displayPos}`);
+      
+      const traps = getActivatableTraps(gameState, 'summon', AI_KEY, { summonedMonster: result.card });
+      const player1Socket = gameState.players.player1?.id;
+      
+      if (player1Socket && traps.length > 0) {
+        const room = rooms.get(roomCode);
+        if (room) {
+          room.pendingTrapResponse = {
+            type: 'summon',
+            event: 'summon',
+            playerKey: AI_KEY,
+            cardId: best.cardId,
+            position,
+            traps,
+            context: { summonedMonster: result.card }
+          };
+          
+          io.to(player1Socket).emit('trap-prompt', {
+            event: 'summon',
+            triggerCard: { name: result.card.name, cardId: result.card.cardId },
+            traps: traps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+            timeout: 8
+          });
+          
+          io.to(roomCode).emit('game-state', { state: serialize(gameState, null) });
+          
+          if (room.trapTimeout) clearTimeout(room.trapTimeout);
+          room.trapTimeout = setTimeout(() => {
+            if (room.resolvePendingActionWithoutTrap) room.resolvePendingActionWithoutTrap();
+          }, 8000);
+          
+          await waitForTrap(room);
+        }
+      } else {
+        processEventEffects(gameState, 'summon', AI_KEY, { summonedMonster: result.card });
+        if (reportAction(emitFn, action)) return;
+        await delay(THINK_DELAY);
+      }
     }
   }
 
   // Set a trap if available
   const traps = findTrapInHand(ai.hand);
-  if (traps.length > 0) {
+  if (traps.length > 0 && ai.field.spells.length < 5) {
     const trap = traps[0];
     const result = setSpellTrap(gameState, AI_KEY, trap.cardId, true);
     if (result.success) {
@@ -191,55 +235,40 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
     // Random 15% chance to skip a spell (makes AI beatable)
     if (roll(0.15)) continue;
 
-    switch (base.effect) {
-      case 'damage_800':
-      case 'damage_1000': {
-        const dmg = base.effect === 'damage_800' ? 800 : 1000;
-        player.lp -= dmg;
-        ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
-        ai.grave.push({ ...spell });
-        gameState.log.push(`Yugi used ${base.name}! ${dmg} damage!`);
-        if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId, damage: dmg })) return;
-        await delay(THINK_DELAY);
-        break;
-      }
+    // Heuristics
+    if (base.effect === 'destroy_all_monsters') {
+      const oppCount = player.field.monsters.filter(Boolean).length;
+      const myCount = ai.field.monsters.filter(Boolean).length;
+      if (oppCount === 0) continue;
+      const myMaxAtk = ai.field.monsters.reduce((max, m) => Math.max(max, m.atk || 0), 0);
+      const oppMaxAtk = player.field.monsters.reduce((max, m) => Math.max(max, m.atk || 0), 0);
+      if (myCount > 0 && oppMaxAtk <= myMaxAtk) continue;
+    }
 
-      case 'heal_500': {
-        ai.lp = Math.min(ai.lp + 500, 9999);
-        ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
-        ai.grave.push({ ...spell });
-        gameState.log.push(`Yugi used ${base.name}! +500 LP`);
-        if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId })) return;
-        await delay(THINK_DELAY);
-        break;
-      }
+    if (base.effect === 'destroy_opponent_monsters') {
+      const oppCount = player.field.monsters.filter(Boolean).length;
+      if (oppCount === 0) continue;
+    }
 
-      case 'destroy_all_monsters': {
-        const p1Monsters = gameState.players.player1.field.monsters.splice(0);
-        const p2Monsters = gameState.players.player2.field.monsters.splice(0);
-        gameState.players.player1.grave.push(...p1Monsters);
-        gameState.players.player2.grave.push(...p2Monsters);
-        ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
-        ai.grave.push({ ...spell });
-        gameState.log.push(`Yugi activated ${base.name}!`);
-        if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId })) return;
-        await delay(THINK_DELAY);
-        break;
-      }
+    if (base.effect === 'life_gain' || base.effect === 'heal_500') {
+      if (ai.lp >= 7500) continue;
+    }
 
-      case 'destroy_opponent_monsters': {
-        const oppMonsters = gameState.players.player1.field.monsters.splice(0);
-        gameState.players.player1.grave.push(...oppMonsters);
-        ai.hand = ai.hand.filter(c => c.cardId !== spell.cardId);
-        ai.grave.push({ ...spell });
-        gameState.log.push(`Yugi activated ${base.name}!`);
-        if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId })) return;
-        await delay(THINK_DELAY);
-        break;
-      }
+    if (base.category === 'equip' || base.effect === 'atk_boost' || base.effect === 'spellcaster_boost' || base.effect === 'boost_by_spells') {
+      const myFaceUpCount = ai.field.monsters.filter(m => m && !m.faceDown).length;
+      if (myFaceUpCount === 0) continue;
+    }
 
-      default:
-        break;
+    if (ai.field.spells.length < 5) {
+      const setResult = setSpellTrap(gameState, AI_KEY, spell.cardId, false);
+      if (setResult.success) {
+        const resolveResult = resolveSpellEffect(gameState, AI_KEY, spell.cardId);
+        if (resolveResult.success) {
+          gameState.log.push(`Yugi activated Spell card: ${base.name}!`);
+          if (reportAction(emitFn, { type: 'spell', cardId: spell.cardId })) return;
+          await delay(THINK_DELAY);
+        }
+      }
     }
   }
 
@@ -247,13 +276,33 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   await delay(THINK_DELAY);
   await stepPhase(emitFn); // main1 → battle
   await delay(THINK_DELAY);
+
+  // Smart flip check
   for (const monster of ai.field.monsters) {
     if (monster.position === 'defense' && !monster.faceDown) {
-      monster.position = 'attack';
-      monster.faceDown = false;
-      gameState.log.push(`Yugi flipped ${monster.name} to attack position`);
-      if (reportAction(emitFn, { type: 'flip', cardId: monster.cardId })) return;
-      await delay(THINK_DELAY);
+      const atk = monster.atk || 0;
+      const def = monster.def || 0;
+      const oppMonsters = player.field.monsters.filter(Boolean);
+      
+      let shouldFlip = false;
+      if (atk > def) {
+        if (oppMonsters.length === 0) {
+          shouldFlip = true;
+        } else {
+          shouldFlip = oppMonsters.some(opp => {
+            const oppAtk = opp.position === 'attack' ? (opp.atk || 0) : (opp.def || 0);
+            return atk >= oppAtk;
+          });
+        }
+      }
+      
+      if (shouldFlip) {
+        monster.position = 'attack';
+        monster.faceDown = false;
+        gameState.log.push(`Yugi flipped ${monster.name} to Attack Position`);
+        if (reportAction(emitFn, { type: 'flip', cardId: monster.cardId })) return;
+        await delay(THINK_DELAY);
+      }
     }
   }
 
@@ -263,16 +312,56 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   );
 
   for (const attacker of attackers) {
-    const oppMonsters = player.field.monsters;
+    const oppMonsters = player.field.monsters.filter(Boolean);
 
     if (oppMonsters.length === 0) {
       // Direct attack
-      const result = directAttack(gameState, AI_KEY, attacker.cardId);
-      if (result.success) {
-        gameState.log.push(`Yugi's ${attacker.name} attacks directly for ${result.damage}!`);
-        if (reportAction(emitFn, { type: 'direct-attack', attackerId: attacker.cardId, damage: result.damage })) return;
-        ai.attackedMonsters.push(attacker.cardId);
-        await delay(THINK_DELAY);
+      const traps = getActivatableTraps(gameState, 'attack_declared', AI_KEY, { attacker, targetId: null });
+      const player1Socket = gameState.players.player1?.id;
+      
+      if (player1Socket && traps.length > 0) {
+        const room = rooms.get(roomCode);
+        if (room) {
+          room.pendingTrapResponse = {
+            type: 'direct-attack',
+            event: 'attack_declared',
+            playerKey: AI_KEY,
+            attackerId: attacker.cardId,
+            targetId: null,
+            traps
+          };
+          
+          io.to(player1Socket).emit('trap-prompt', {
+            event: 'attack',
+            triggerCard: { name: attacker.name, cardId: attacker.cardId },
+            traps: traps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+            timeout: 8
+          });
+          
+          io.to(roomCode).emit('game-state', { state: serialize(gameState, null) });
+          
+          if (room.trapTimeout) clearTimeout(room.trapTimeout);
+          room.trapTimeout = setTimeout(() => {
+            if (room.resolvePendingActionWithoutTrap) room.resolvePendingActionWithoutTrap();
+          }, 8000);
+          
+          await waitForTrap(room);
+        }
+      } else {
+        const eventResult = processEventEffects(gameState, 'attack_declared', AI_KEY, { attacker, targetId: null });
+        if (eventResult.cancelAttack) {
+          if (reportAction(emitFn, { type: 'attack', attackerId: attacker.cardId, targetId: null, damage: 0, destroyed: [] })) return;
+          ai.attackedMonsters.push(attacker.cardId);
+          await delay(THINK_DELAY);
+        } else {
+          const result = directAttack(gameState, AI_KEY, attacker.cardId);
+          if (result.success) {
+            gameState.log.push(`Yugi's ${attacker.name} attacks directly for ${result.damage}!`);
+            if (reportAction(emitFn, { type: 'direct-attack', attackerId: attacker.cardId, damage: result.damage })) return;
+            ai.attackedMonsters.push(attacker.cardId);
+            await delay(THINK_DELAY);
+          }
+        }
       }
     } else {
       // Find the best target
@@ -286,13 +375,15 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
         const attackerAtk = getMonsterAtk(attacker);
 
         if (current.position === 'attack') {
-           if (attackerAtk > currentAtk) {
-             score = attackerAtk - currentAtk; // prefer highest damage
-           }
+          if (attackerAtk > currentAtk) {
+            score = attackerAtk - currentAtk + 500;
+          } else if (attackerAtk === currentAtk) {
+            score = 10;
+          }
         } else {
-           if (attackerAtk > currentDef) {
-             score = 0; // Destroying def monster is okay
-           }
+          if (attackerAtk > currentDef) {
+            score = 100;
+          }
         }
         if (score > bestScore) {
           bestScore = score;
@@ -300,19 +391,78 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
         }
       }
 
+      // 10% beatable randomness
+      if (roll(0.1)) {
+        if (roll(0.5) && oppMonsters.length > 0) {
+          bestTarget = oppMonsters[Math.floor(Math.random() * oppMonsters.length)];
+          const attackerAtk = getMonsterAtk(attacker);
+          const targetVal = bestTarget.position === 'attack' ? getMonsterAtk(bestTarget) : getMonsterDef(bestTarget);
+          bestScore = attackerAtk >= targetVal ? 1 : -1;
+        } else {
+          bestTarget = null;
+        }
+      }
+
       if (bestTarget && bestScore >= 0) {
-        const result = executeAttack(gameState, AI_KEY, attacker.cardId, bestTarget.cardId);
-        if (result.success) {
-          gameState.log.push(`Yugi's ${attacker.name} attacks ${bestTarget.name}`);
-          if (reportAction(emitFn, {
-            type: 'attack',
-            attackerId: attacker.cardId,
-            targetId: bestTarget.cardId,
-            damage: result.damage,
-            destroyed: result.destroyed
-          })) return;
-          ai.attackedMonsters.push(attacker.cardId);
-          await delay(THINK_DELAY);
+        const traps = getActivatableTraps(gameState, 'attack_declared', AI_KEY, { attacker, targetId: bestTarget.cardId });
+        const player1Socket = gameState.players.player1?.id;
+        
+        if (player1Socket && traps.length > 0) {
+          const room = rooms.get(roomCode);
+          if (room) {
+            room.pendingTrapResponse = {
+              type: 'attack',
+              event: 'attack_declared',
+              playerKey: AI_KEY,
+              attackerId: attacker.cardId,
+              targetId: bestTarget.cardId,
+              traps
+            };
+            
+            io.to(player1Socket).emit('trap-prompt', {
+              event: 'attack',
+              triggerCard: { name: attacker.name, cardId: attacker.cardId },
+              traps: traps.map(t => ({ cardId: t.cardId, name: t.name, description: t.description })),
+              timeout: 8
+            });
+            
+            io.to(roomCode).emit('game-state', { state: serialize(gameState, null) });
+            
+            if (room.trapTimeout) clearTimeout(room.trapTimeout);
+            room.trapTimeout = setTimeout(() => {
+              if (room.resolvePendingActionWithoutTrap) room.resolvePendingActionWithoutTrap();
+            }, 8000);
+            
+            await waitForTrap(room);
+          }
+        } else {
+          // No human traps. Resolve attack normally.
+          const eventResult = processEventEffects(gameState, 'attack_declared', AI_KEY, { attacker, targetId: bestTarget.cardId });
+          if (eventResult.cancelAttack) {
+            if (reportAction(emitFn, { type: 'attack', attackerId: attacker.cardId, targetId: bestTarget.cardId, damage: 0, destroyed: [] })) return;
+            ai.attackedMonsters.push(attacker.cardId);
+            await delay(THINK_DELAY);
+          } else {
+            const result = executeAttack(gameState, AI_KEY, attacker.cardId, bestTarget.cardId);
+            if (result.success) {
+              if (result.damageToDefender > 0) {
+                processEventEffects(gameState, 'battle_damage', AI_KEY, { damagedPlayerKey: PLAYER_KEY, damage: result.damageToDefender });
+              }
+              if (result.damageToAttacker > 0) {
+                processEventEffects(gameState, 'battle_damage', AI_KEY, { damagedPlayerKey: AI_KEY, damage: result.damageToAttacker });
+              }
+              gameState.log.push(`Yugi's ${attacker.name} attacks ${bestTarget.name}`);
+              if (reportAction(emitFn, {
+                type: 'attack',
+                attackerId: attacker.cardId,
+                targetId: bestTarget.cardId,
+                damage: result.damage,
+                destroyed: result.destroyed
+              })) return;
+              ai.attackedMonsters.push(attacker.cardId);
+              await delay(THINK_DELAY);
+            }
+          }
         }
       } else {
         // Can't safely attack any monster
@@ -332,4 +482,62 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   reportAction(emitFn, { type: 'end-phase' });
 }
 
-export { executeYugiTurn };
+function shouldAIActivateTrap(gameState, trap, event, context = {}) {
+  // Beatable randomness: 10% chance to just fail/ignore the trap activation entirely
+  if (Math.random() < 0.10) {
+    return false;
+  }
+
+  const ai = gameState.players.player2;
+  const player = gameState.players.player1;
+
+  if (event === 'summon') {
+    const summoned = context.summonedMonster;
+    const atk = summoned?.atk || 0;
+    
+    // Trap Hole (destroy_monster / destroy_1000atk_monster)
+    if (trap.effect === 'destroy_monster' || trap.effect === 'destroy_1000atk_monster') {
+      // Meaningful threat: ATK >= 1500, or if AI LP is low (< 2500) and ATK >= 1000
+      if (atk >= 1500) return Math.random() < 0.85;
+      if (ai.lp < 2500 && atk >= 1000) return Math.random() < 0.80;
+      return false; // Skip for weak monsters
+    }
+  }
+
+  if (event === 'attack_declared') {
+    const attacker = context.attacker;
+    const attackerAtk = attacker?.atk || 0;
+
+    // Mirror Force (destroy_attackers)
+    if (trap.effect === 'destroy_attackers') {
+      // Count opponent's attack position monsters
+      const oppAttackMonsters = player.field.monsters.filter(m => m && m.position === 'attack');
+      // High value: multiple attackers (>= 2)
+      if (oppAttackMonsters.length >= 2) return Math.random() < 0.90;
+      // High value: threat has high ATK (>= 1800)
+      if (attackerAtk >= 1800) return Math.random() < 0.85;
+      // High value: AI has low LP (< 3000)
+      if (ai.lp < 3000) return Math.random() < 0.80;
+      // Otherwise, save it
+      return false;
+    }
+
+    // Reflect Battle / Mirror Gate Strike (reflect_battle)
+    if (trap.effect === 'reflect_battle') {
+      // Reflect when the incoming attacker has high ATK (>= 1500) or AI is low LP
+      if (attackerAtk >= 1500) return Math.random() < 0.85;
+      if (ai.lp < 2500) return Math.random() < 0.80;
+      return false;
+    }
+  }
+
+  if (event === 'counter-trap') {
+    // Counter Counter (negate_spell)
+    return Math.random() < 0.80;
+  }
+
+  // Fallback for other traps: 70% chance to activate
+  return Math.random() < 0.70;
+}
+
+export { executeYugiTurn, shouldAIActivateTrap };

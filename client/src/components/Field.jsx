@@ -12,9 +12,10 @@ export default function Field({
   selectable = false,
   onCardHover,
   duelAnimation = null,
+  tributeSelectedIds = [],
 }) {
   const renderSlot = (card, index, type) => {
-    const isSelected = selectedMonster === index
+    const isSelected = selectedMonster === index || (card && tributeSelectedIds.includes(card.cardId))
     const isTarget = attackTargets.includes(index)
     const zoneClass = type === 'monster' ? 'monster-zone' : 'spell-zone'
     const animationClass = duelAnimation?.kind === 'attack' && card
