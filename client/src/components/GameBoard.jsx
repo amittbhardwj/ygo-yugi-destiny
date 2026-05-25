@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Hand from './Hand'
 import Field from './Field'
 import CardDetailPanel from './CardDetailPanel'
@@ -30,13 +30,13 @@ function normalizePhase(phase) {
 
 function LifePointsDisplay({ name, lp, isPlayer, damage = null }) {
   return (
-    <div className={`lp-wing-frame ${isPlayer ? 'lp-player' : 'lp-opponent'} ${damage ? 'lp-damage-flash' : ''}`}>
+    <div className={`lp-wing-frame ${isPlayer ? 'lp-player' : 'lp-opponent'} ${damage ? 'damage-flash' : ''}`}>
       <div className="lp-content">
         <span className="lp-name">{name}</span>
         <span className="lp-value">{lp?.toLocaleString() || 0}</span>
         <span className="lp-label">LP</span>
       </div>
-      {damage ? <span className="lp-floating-damage">-{damage}</span> : null}
+      {damage ? <span className="floating-damage">-{damage}</span> : null}
     </div>
   )
 }
@@ -151,6 +151,21 @@ export default function GameBoard({
   const [pendingPlayCard, setPendingPlayCard] = useState(null)
   const [localOverlay, setLocalOverlay] = useState(null)
   const [confirmEndTurn, setConfirmEndTurn] = useState(false)
+
+  const [showTrapReaction, setShowTrapReaction] = useState(false)
+  const lastLogLengthRef = useRef(0)
+
+  useEffect(() => {
+    if (gameState?.log?.length > lastLogLengthRef.current) {
+      const newLogs = gameState.log.slice(lastLogLengthRef.current)
+      lastLogLengthRef.current = gameState.log.length
+      
+      if (newLogs.some(l => l.includes(' activated!'))) {
+        setShowTrapReaction(true)
+        setTimeout(() => setShowTrapReaction(false), 2000)
+      }
+    }
+  }, [gameState?.log])
   // Merge local overlay with parent-provided overlay (parent wins for turn announcements)
   const overlay = overlayMessage || localOverlay
 
@@ -206,10 +221,12 @@ export default function GameBoard({
 
   const handleSpellClick = (card) => {
     setHoveredCard(card)
-    if (!canPlayCard) return
+    if (!isYourTurn) return
     const type = (card?.type || '').toLowerCase()
-    if (type === 'spell') {
+    if (type === 'spell' && canPlayCard) {
       onPlayCard(card, 'activate')
+    } else if (type === 'trap') {
+      onPlayCard(card, 'activate-trap')
     }
   }
 
@@ -254,6 +271,8 @@ export default function GameBoard({
 
       {/* Main Field Area */}
       <div className="main-field">
+        <div className="field-watermark">𓂀</div>
+
         {/* Top - Opponent Info */}
         <div className="top-bar">
           <LifePointsDisplay name={opponent.name} lp={opponent.lp} isPlayer={false} damage={opponentDamage} />
@@ -395,6 +414,15 @@ export default function GameBoard({
             setPendingPlayCard(null)
           }}
         />
+      )}
+
+      {/* Character Reaction Cut-in */}
+      {showTrapReaction && (
+        <div className="reaction-cut-in-overlay">
+          <div className="reaction-cut-in">
+            <img src="/joey-reaction.png" alt="Reaction" className="reaction-image" />
+          </div>
+        </div>
       )}
     </div>
   )

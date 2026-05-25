@@ -382,6 +382,11 @@ io.on('connection', (socket) => {
         return;
       }
 
+      if (gs.players[playerKey].hasNormalSummoned) {
+        socket.emit('error', { message: 'You can only Normal Summon or Set once per turn' });
+        return;
+      }
+
       // Count already summoned monsters this turn
       const existingMonsters = gs.players[playerKey].field.monsters.filter(m => !m.token).length;
       if (existingMonsters >= 5) {
@@ -546,6 +551,56 @@ io.on('connection', (socket) => {
       io.to(room.code).emit('action-result', {
         success: true,
         message: `Activated ${card.name}`,
+        newState: serialize(gs, null)
+      });
+      if (!checkWinCondition(gs, room.code, io)) {
+        io.to(room.code).emit('game-state', { state: serialize(gs, null) });
+      }
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
+  // --- Activate Trap ---
+  socket.on('activate-trap', ({ cardId }) => {
+    try {
+      const room = getRoomBySocket(socket.id);
+      if (!room || !room.gameState || !room.gameState.started) {
+        socket.emit('error', { message: 'Game not started' });
+        return;
+      }
+
+      const gs = room.gameState;
+      const playerKey = gs.players.player1?.id === socket.id ? 'player1' : 'player2';
+
+      const fieldTrap = gs.players[playerKey].field.spells.find(s => s.cardId === cardId);
+
+      if (!fieldTrap) {
+        socket.emit('error', { message: 'Trap not found on field' });
+        return;
+      }
+      if (fieldTrap.type !== 'trap') {
+        socket.emit('error', { message: 'Only Trap cards can be activated here' });
+        return;
+      }
+      if (!fieldTrap.faceDown) {
+        socket.emit('error', { message: 'Trap is already face-up' });
+        return;
+      }
+
+      fieldTrap.faceDown = false;
+      fieldTrap.position = 'open';
+
+      const result = resolveTrapEffect(gs, playerKey, cardId);
+
+      if (!result.success) {
+        socket.emit('error', { message: result.error });
+        return;
+      }
+
+      io.to(room.code).emit('action-result', {
+        success: true,
+        message: `Activated ${fieldTrap.name}`,
         newState: serialize(gs, null)
       });
       if (!checkWinCondition(gs, room.code, io)) {

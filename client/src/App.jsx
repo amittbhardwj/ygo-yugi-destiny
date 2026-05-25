@@ -295,6 +295,8 @@ export default function App() {
       }
     } else if (actionType === 'activate') {
       emit('activate-spell', { cardId: card.cardId })
+    } else if (actionType === 'activate-trap') {
+      emit('activate-trap', { cardId: card.cardId })
     } else if (actionType === 'hand') {
       // Direct from hand - should not happen since GameBoard shows modal first
       emit('play-card', { cardId: card?.cardId || card })

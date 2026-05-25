@@ -9,16 +9,16 @@ import { resolveSpellEffect } from './rules.js';
 const PHASES = ['draw', 'standby', 'main1', 'battle', 'main2', 'end'];
 
 const CARD_DATABASE = {
-  'm1':  { name: 'Dark Magician',            atk: 2500, def: 2100, type: 'monster' },
-  'm2':  { name: 'Blue-Eyes White Dragon',   atk: 3000, def: 2500, type: 'monster' },
-  'm3':  { name: 'Gaia The Fierce Knight',    atk: 2300, def: 2100, type: 'monster' },
-  'm4':  { name: 'Summoned Skull',           atk: 2500, def: 1200, type: 'monster' },
-  'm5':  { name: 'Ansato',                   atk: 1000, def: 1000, type: 'monster' },
-  'm6':  { name: 'Cerebral',                atk: 800,  def: 2000, type: 'monster' },
-  'm7':  { name: 'Feral Imp',               atk: 1300, def: 1000, type: 'monster' },
-  'm8':  { name: 'Dragoner',                atk: 1100, def: 1600, type: 'monster' },
-  'm9':  { name: 'Mystical Elf',            atk: 300,  def: 2500, type: 'monster' },
-  'm10': { name: 'Haniwa',                  atk: 500,  def: 500,  type: 'monster' },
+  'm1':  { name: 'Dark Magician',            atk: 2500, def: 2100, level: 7, type: 'monster' },
+  'm2':  { name: 'Blue-Eyes White Dragon',   atk: 3000, def: 2500, level: 8, type: 'monster' },
+  'm3':  { name: 'Gaia The Fierce Knight',    atk: 2300, def: 2100, level: 7, type: 'monster' },
+  'm4':  { name: 'Summoned Skull',           atk: 2500, def: 1200, level: 6, type: 'monster' },
+  'm5':  { name: 'Ansato',                   atk: 1000, def: 1000, level: 4, type: 'monster' },
+  'm6':  { name: 'Cerebral',                atk: 800,  def: 2000, level: 4, type: 'monster' },
+  'm7':  { name: 'Feral Imp',               atk: 1300, def: 1000, level: 4, type: 'monster' },
+  'm8':  { name: 'Dragoner',                atk: 1100, def: 1600, level: 4, type: 'monster' },
+  'm9':  { name: 'Mystical Elf',            atk: 300,  def: 2500, level: 4, type: 'monster' },
+  'm10': { name: 'Haniwa',                  atk: 500,  def: 500,  level: 2, type: 'monster' },
   's1':  { name: 'Dark Hole',                type: 'spell', effect: 'destroy_all_monsters' },
   's2':  { name: 'Raigeki',                  type: 'spell', effect: 'destroy_opponent_monsters' },
   's3':  { name: 'Monster Reborn',           type: 'spell', effect: 'special_summon_grave' },
@@ -148,7 +148,16 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
 
   // ---- MAIN PHASE 1 ----
   await delay(THINK_DELAY);
-  const summonable = findMonsterInHand(ai.hand);
+  const availableTributes = ai.field.monsters.length;
+  const summonable = findMonsterInHand(ai.hand).filter(c => {
+    const base = getCardBase(c.cardId);
+    if (!base) return false;
+    const lvl = base.level || 4;
+    if (lvl >= 7) return availableTributes >= 2;
+    if (lvl >= 5) return availableTributes >= 1;
+    return true;
+  });
+
   if (summonable.length > 0) {
     const best = sortMonstersByPriority(summonable)[0];
     const result = summonMonster(gameState, AI_KEY, best.cardId, 'attack');
@@ -266,25 +275,48 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
         await delay(THINK_DELAY);
       }
     } else {
-      // Find weakest DEF to attack
-      const target = oppMonsters.reduce((weakest, current) => {
+      // Find the best target
+      let bestTarget = null;
+      let bestScore = -9999;
+      
+      for (const current of oppMonsters) {
+        let score = -9999;
+        const currentAtk = getMonsterAtk(current);
         const currentDef = getMonsterDef(current);
-        const weakestDef = getMonsterDef(weakest);
-        return currentDef < weakestDef ? current : weakest;
-      });
+        const attackerAtk = getMonsterAtk(attacker);
 
-      const result = executeAttack(gameState, AI_KEY, attacker.cardId, target.cardId);
-      if (result.success) {
-        gameState.log.push(`Yugi's ${attacker.name} attacks ${target.name}`);
-        if (reportAction(emitFn, {
-          type: 'attack',
-          attackerId: attacker.cardId,
-          targetId: target.cardId,
-          damage: result.damage,
-          destroyed: result.destroyed
-        })) return;
+        if (current.position === 'attack') {
+           if (attackerAtk > currentAtk) {
+             score = attackerAtk - currentAtk; // prefer highest damage
+           }
+        } else {
+           if (attackerAtk > currentDef) {
+             score = 0; // Destroying def monster is okay
+           }
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestTarget = current;
+        }
+      }
+
+      if (bestTarget && bestScore >= 0) {
+        const result = executeAttack(gameState, AI_KEY, attacker.cardId, bestTarget.cardId);
+        if (result.success) {
+          gameState.log.push(`Yugi's ${attacker.name} attacks ${bestTarget.name}`);
+          if (reportAction(emitFn, {
+            type: 'attack',
+            attackerId: attacker.cardId,
+            targetId: bestTarget.cardId,
+            damage: result.damage,
+            destroyed: result.destroyed
+          })) return;
+          ai.attackedMonsters.push(attacker.cardId);
+          await delay(THINK_DELAY);
+        }
+      } else {
+        // Can't safely attack any monster
         ai.attackedMonsters.push(attacker.cardId);
-        await delay(THINK_DELAY);
       }
     }
   }

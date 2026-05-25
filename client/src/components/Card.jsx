@@ -10,7 +10,7 @@ const ATTRIBUTE_COLORS = {
 }
 
 const FRAME_STYLES = {
-  normal: { border: '#8B5A2B', bg: 'linear-gradient(135deg, #654321 0%, #8B4513 50%, #654321 100%)' },
+  normal: { border: '#8B5A2B', bg: '#8B5A2B' },
   effect: { border: '#CC6600', bg: 'linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #8B4513 100%)' },
   spell: { border: '#228B22', bg: 'linear-gradient(135deg, #166534, #15803d)' },
   trap: { border: '#7B3FEE', bg: 'linear-gradient(135deg, #6b21a8, #7e22ce)' }
@@ -43,7 +43,7 @@ export default function Card({ card, faceDown = false, selected = false, selecta
   const getCardStyle = () => {
     const dims = SIZE_CONFIG[size] || SIZE_CONFIG.field
     let base = `relative cursor-pointer transition-all duration-200 rounded-lg overflow-hidden`
-    if (faceDown) return `${base} card-back`
+    if (faceDown) return `${base} card-back-egyptian`
     let border = 'border-gray-600'
     const cardType = getCardType()
     if (selected) border = 'border-yellow-400 border-4'
@@ -120,7 +120,7 @@ export default function Card({ card, faceDown = false, selected = false, selecta
       onMouseLeave={() => setIsHovered(false)}
     >
       {faceDown
-        ? <div className="w-full h-full card-back rounded-lg flex items-center justify-center"><span className="text-yellow-400 text-2xl font-bold opacity-50">?</span></div>
+        ? <div className="w-full h-full card-back-egyptian rounded-lg flex items-center justify-center"><span className="text-yellow-400 text-2xl font-bold opacity-50">?</span></div>
         : renderCardFace()
       }
       {!faceDown && size === 'field' && (card.atk !== undefined || card.def !== undefined) && (

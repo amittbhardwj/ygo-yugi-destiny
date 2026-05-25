@@ -143,9 +143,38 @@ function summonMonster(state, playerKey, cardId, position = 'defense') {
     return { success: false, error: 'Card not in hand' };
   }
 
-  const card = p.hand.splice(cardIndex, 1)[0];
+  const card = p.hand[cardIndex];
+
+  // Check Tribute requirements
+  const level = card.level || 0;
+  let requiredTributes = 0;
+  if (level >= 5 && level <= 6) requiredTributes = 1;
+  if (level >= 7) requiredTributes = 2;
+
+  if (requiredTributes > 0) {
+    if (p.field.monsters.length < requiredTributes) {
+      return { success: false, error: `Requires ${requiredTributes} tributes for Level ${level}` };
+    }
+    // Auto-tribute weakest monsters
+    // Create a sorted copy by ATK ascending
+    const sortedMonsters = [...p.field.monsters].sort((a, b) => (a.atk || 0) - (b.atk || 0));
+    const tributes = sortedMonsters.slice(0, requiredTributes);
+    
+    // Remove tributes from field
+    p.field.monsters = p.field.monsters.filter(m => !tributes.some(t => t.cardId === m.cardId));
+    p.grave.push(...tributes.map(m => ({ ...m, faceDown: false })));
+    
+    state.log.push(`${p.name} tributed ${tributes.length} monster(s) to summon ${card.name}`);
+  }
+
+  // Actually remove from hand
+  p.hand.splice(cardIndex, 1);
+
   card.position = position;
-  card.faceDown = false;
+  card.faceDown = position === 'defense' || position === 'set';
+  if (card.faceDown) {
+    card.position = 'defense';
+  }
   p.field.monsters.push(card);
   p.hasNormalSummoned = true;
 
@@ -287,6 +316,11 @@ function advancePhase(state) {
     state.currentPlayer = opponentKey;
     state.turn++;
     state.phase = 'draw';
+
+    // Reset new player's flags to guarantee a clean turn state
+    const nextP = state.players[opponentKey];
+    nextP.hasNormalSummoned = false;
+    nextP.attackedMonsters = [];
 
     // Reset playerLocked so the new current player can act
     state.playerLocked = false;

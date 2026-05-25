@@ -175,7 +175,7 @@ function resolveSpellEffect(state, playerKey, spellCardId, context = {}) {
     case 'atk_boost':
     case 'spellcaster_boost':
     case 'boost_by_spells': {
-      const target = context.target || p.field.monsters[p.field.monsters.length - 1];
+      const target = context.target || pickStrongest(p.field.monsters);
       if (target) {
         const amount = effect === 'boost_by_spells' ? 500 * Math.max(1, p.field.spells.length) : /1200/.test(cardName) ? 1200 : /800/.test(cardName) ? 800 : /700/.test(cardName) ? 700 : /600/.test(cardName) ? 600 : 500;
         target.atk = (target.atk || 0) + amount;

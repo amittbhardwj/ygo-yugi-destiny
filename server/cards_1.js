@@ -8,7 +8,7 @@ const CARDS_PART1 = [
   { id: 'm7', name: 'Golem', atk: 1300, def: 1400, type: 'monster', level: 4, attribute: 'earth', species: 'rock', effect: null, description: 'A stone creature from ancient ruins that guards its territory.' },
   { id: 'm8', name: 'Dragoner', atk: 1100, def: 1600, type: 'monster', level: 5, attribute: 'fire', species: 'dragon', effect: null, description: 'A dragon creature that protects its master fiercely.' },
   { id: 'm9', name: 'Feral Imp', atk: 1300, def: 1000, type: 'monster', level: 4, attribute: 'dark', species: 'fiend', effect: null, description: 'A small but troublesome imp that loves to play tricks.' },
-  { id: 'm10', name: 'Dark Energy', atk: 1000, def: 800, type: 'monster', level: 3, attribute: 'dark', species: 'fiend', effect: null, description: 'A shadowy creature that feeds on negative energy.' },
+
   { id: 'm11', name: 'Koumori Dragon', atk: 2000, def: 1500, type: 'monster', level: 5, attribute: 'dark', species: 'dragon', effect: null, description: 'A dragon that appears from dark clouds resembling a castle.' },
   { id: 'm12', name: 'One-Eyed Shield', atk: 1000, def: 1000, type: 'monster', level: 4, attribute: 'dark', species: 'fiend', effect: null, description: 'A shield possessed by a spirit with a single eye.' },
   { id: 'm13', name: 'Dark Magician Girl', atk: 2000, def: 1700, type: 'monster', level: 6, attribute: 'dark', species: 'spellcaster', effect: null, description: 'A magician girls who grows stronger each time a spell is cast.' },

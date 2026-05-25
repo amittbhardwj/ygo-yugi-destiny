@@ -33,26 +33,27 @@ export default function PhaseButtons({ currentPhase, isYourTurn, onEndPhase }) {
           const isPast = index < currentIndex
           const canClick = isYourTurn && index === currentIndex && onEndPhase
 
+          const getActiveClass = () => {
+            if (phase.key === 'M1') return 'phase-btn-m1-active'
+            if (phase.key === 'BP') return 'phase-btn-bp-active'
+            return 'phase-btn-active'
+          }
+
           return (
             <button
               key={phase.key}
               onClick={() => handleClick(index)}
               disabled={!canClick}
               className={`
-                phase-circle-btn
-                ${isActive ? 'phase-active' : ''}
-                ${isPast ? 'phase-past' : ''}
-                ${!isYourTurn && !isActive ? 'phase-inactive' : ''}
+                phase-btn-circle
+                ${isActive ? getActiveClass() : ''}
+                ${isPast ? 'phase-btn-past' : ''}
+                ${!isYourTurn && !isActive ? 'opacity-40' : ''}
                 ${canClick ? 'cursor-pointer hover:scale-105' : ''}
               `}
               title={`${phase.label} | turn=${isYourTurn}, idx=${index}, currIdx=${currentIndex}, hasFn=${!!onEndPhase}`}
             >
-              <span className={`
-                phase-circle-label
-                ${isActive ? 'text-ygo-dark font-bold' : ''}
-                ${isPast ? 'text-gray-500' : ''}
-                ${!isYourTurn && !isActive ? 'text-gray-600' : ''}
-              `}>
+              <span className="phase-circle-label">
                 {phase.key}
               </span>
             </button>
