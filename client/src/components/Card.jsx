@@ -150,9 +150,9 @@ export default function Card({ card, faceDown = false, selected = false, selecta
       onMouseLeave={() => setIsHovered(false)}
     >
       {faceDown ? (
-        <div className="w-full h-full rounded-none overflow-hidden flex items-center justify-center">
+        <div className="w-full h-full rounded-none overflow-hidden flex items-center justify-center bg-[#5c3317]">
           <img
-            src="/card-art/card-back.png"
+            src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
             alt="Card Back"
             className="w-full h-full object-cover"
           />

@@ -122,12 +122,17 @@ function generateDeck() {
 }
 
 function drawCard(state, playerKey) {
-  const p = state.players[playerKey];
-  if (p.deck.length === 0) {
+  const player = state.players[playerKey];
+  if (player.skipNextDraw) {
+    player.skipNextDraw = false;
+    state.log.push(`${player.name} skips their draw due to a card effect!`);
+    return;
+  }
+  if (player.deck.length === 0) {
     const winnerKey = playerKey === 'player1' ? 'player2' : 'player1';
     state.winner = winnerKey;
     state.winReason = 'No cards to draw';
-    state.log.push(`${p.name} cannot draw a card! ${state.players[winnerKey].name} wins!`);
+    state.log.push(`${player.name} cannot draw a card! ${state.players[winnerKey].name} wins!`);
     return null;
   }
   const card = p.deck.pop();
@@ -239,6 +244,10 @@ function executeAttack(state, playerKey, attackerId, targetId) {
   if (target.faceDown) {
     target.faceDown = false;
     target.position = 'defense';
+    // Import dynamically to avoid circular dependencies if any arise later, or just use the imported one
+    if (typeof target.effect === 'string' && target.effect.startsWith('flip_')) {
+        import('./rules.js').then(r => r.resolveFlipEffect(state, opponentKey, target));
+    }
   }
 
   // Mark attacker as having attacked
@@ -270,8 +279,26 @@ function executeAttack(state, playerKey, attackerId, targetId) {
   }
 
   // Apply damage
-  if (damageToAttacker > 0) p.lp -= damageToAttacker;
-  if (damageToDefender > 0) opp.lp -= damageToDefender;
+  if (damageToAttacker > 0) {
+    if (p.redirectNextDamage) {
+      p.redirectNextDamage = false;
+      opp.lp -= damageToAttacker;
+      state.log.push(`Medal of the Caught redirected ${damageToAttacker} damage to ${opp.name}!`);
+    } else {
+      if (p.doubleNextDamage) { damageToAttacker *= 2; p.doubleNextDamage = false; state.log.push(`Damage to ${p.name} was doubled!`); }
+      p.lp -= damageToAttacker;
+    }
+  }
+  if (damageToDefender > 0) {
+    if (opp.redirectNextDamage) {
+      opp.redirectNextDamage = false;
+      p.lp -= damageToDefender;
+      state.log.push(`Medal of the Caught redirected ${damageToDefender} damage to ${p.name}!`);
+    } else {
+      if (opp.doubleNextDamage) { damageToDefender *= 2; opp.doubleNextDamage = false; state.log.push(`Damage to ${opp.name} was doubled!`); }
+      opp.lp -= damageToDefender;
+    }
+  }
 
   // Handle destroyed monsters
   if (destroyedAttacker) {

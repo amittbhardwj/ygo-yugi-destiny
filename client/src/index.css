@@ -1906,16 +1906,18 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
 
 /* Card Detail Panel inside left-panel */
 .card-detail-panel {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+  background: radial-gradient(circle at center, #3a3a3a 0%, #1a1a1a 100%) !important;
+  border: 4px ridge #D4AF37 !important;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.9), 0 4px 12px rgba(0,0,0,0.8) !important;
+  min-height: 100%;
 }
 
 .detail-inner-border {
-  border: 2px groove rgba(198, 163, 74, 0.5) !important;
-  margin: 0 !important;
+  border: 2px solid rgba(212, 175, 55, 0.4) !important;
+  margin: 4px !important;
   padding: 8px !important;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4) !important;
+  height: calc(100% - 8px);
 }
 
 .card-image-area {
@@ -2131,20 +2133,7 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   border-radius: 0 !important;
 }
 
-/* Phase buttons */
-.phase-btn-circle {
-  border-radius: 50% !important;
-  border: 3px ridge #c6a34a !important;
-  background: radial-gradient(circle at 35% 25%, #42364c, #1f142b 62%, #08030c) !important;
-  color: #ff3333 !important;
-  text-shadow: 0 1px 0 #000;
-}
 
-.phase-btn-active, .phase-btn-m1-active, .phase-btn-bp-active {
-  background: radial-gradient(circle at 35% 25%, #fff19a, #d49f37 48%, #4a2f00 78%) !important;
-  color: #ffffff !important;
-  box-shadow: 0 0 15px 4px #ffd700 !important;
-}
 
 /* Overlay & Command Windows */
 .game-overlay-box, .command-window {

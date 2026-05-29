@@ -285,6 +285,7 @@ function resolveSpellEffect(state, playerKey, spellCardId, context = {}) {
         opponent.field.monsters = opponent.field.monsters.filter(m => m.cardId !== target.cardId);
         opponent.hand.push(target);
         state.log.push(`${p.name} activated ${cardName}! Returned ${target.name} to hand.`);
+        checkExodiaWinInRules(state, opponentKey);
       }
       break;
     }
@@ -452,6 +453,95 @@ function activateTrapByEffect(state, ownerKey, trap, event, context = {}) {
       }
       break;
     }
+    case 'flip_destroy': {
+      const target = opponent.field.monsters.find(m => m.faceDown);
+      if (target) {
+        opponent.field.monsters = opponent.field.monsters.filter(m => m.cardId !== target.cardId);
+        opponent.grave.push(target);
+        state.log.push(`${trap.name} activated! Flipped and destroyed ${target.name}!`);
+      } else {
+        state.log.push(`${trap.name} activated! But opponent had no face-down monsters.`);
+      }
+      break;
+    }
+    case 'search_low_atk': {
+      const targetIndex = owner.deck.findIndex(c => c.type === 'monster' && (c.atk || 0) <= 1000);
+      if (targetIndex !== -1) {
+        const card = owner.deck.splice(targetIndex, 1)[0];
+        owner.hand.push(card);
+        state.log.push(`${trap.name} activated! Added ${card.name} to hand.`);
+      } else {
+        state.log.push(`${trap.name} activated! But no targets in deck.`);
+      }
+      break;
+    }
+    case 'destroy_set_st': {
+      if (opponent.field.spells.length > 0) {
+        const target = opponent.field.spells.shift();
+        opponent.grave.push({ ...target, faceDown: false });
+        state.log.push(`${trap.name} activated! Destroyed opponent's ${target.name}.`);
+      }
+      break;
+    }
+    case 'swap_draw': {
+      if (owner.field.monsters.length > 0 && owner.deck.length > 0) {
+        const mon = owner.field.monsters.pop();
+        const top = owner.deck.pop();
+        owner.deck.unshift(mon);
+        if (top.type === 'monster') {
+          owner.field.monsters.push({...top, position: 'defense', faceDown: true});
+        } else {
+          owner.hand.push(top);
+        }
+        state.log.push(`${trap.name} activated! Swapped a monster with the top card of the deck.`);
+      }
+      break;
+    }
+    case 'redirect_damage': {
+      owner.redirectNextDamage = true;
+      state.log.push(`${trap.name} activated! The next battle damage will be redirected!`);
+      break;
+    }
+    case 'banish_top': {
+      for (const pl of [owner, opponent]) {
+        pl.deck.splice(-3);
+      }
+      state.log.push(`${trap.name} activated! Both players banished 3 cards.`);
+      break;
+    }
+    case 'negate_spell': {
+      if (opponent.field.spells.length > 0) {
+        const target = opponent.field.spells.shift();
+        opponent.grave.push({ ...target, faceDown: false });
+        state.log.push(`${trap.name} activated! Negated and destroyed ${target.name}.`);
+      }
+      break;
+    }
+    case 'skip_draw_player': {
+      opponent.skipNextDraw = true;
+      state.log.push(`${trap.name} activated! Opponent skips their next draw.`);
+      break;
+    }
+    case 'atk_boost_turn': {
+      const target = pickStrongest(owner.field.monsters);
+      if (target) {
+        target.atk = (target.atk || 0) + 600;
+        target.tempAtkUntilEnd = (target.tempAtkUntilEnd || 0) + 600;
+        state.log.push(`${trap.name} activated! ${target.name} gained 600 ATK.`);
+      }
+      break;
+    }
+    case 'both_skip_draw': {
+      owner.skipNextDraw = true;
+      opponent.skipNextDraw = true;
+      state.log.push(`${trap.name} activated! Both players skip their next draw.`);
+      break;
+    }
+    case 'damage_double': {
+      owner.doubleNextDamage = true;
+      state.log.push(`${trap.name} activated! The next battle damage taken will be doubled.`);
+      break;
+    }
     default:
       state.log.push(`${trap.name} activated!`);
   }
@@ -529,6 +619,28 @@ function checkWinCondition(state) {
   return null;
 }
 
+function resolveFlipEffect(state, playerKey, monster) {
+  if (!monster || !monster.effect) return;
+  const p = state.players[playerKey];
+  
+  switch (monster.effect) {
+    case 'flip_morphing_jar': {
+      for (const key of ['player1', 'player2']) {
+        const pl = state.players[key];
+        moveCardsToGrave(pl.hand.splice(0), pl);
+        drawSafe(state, key, 5);
+      }
+      state.log.push(`FLIP Effect! Morphing Jar forces both players to discard and draw 5 cards.`);
+      break;
+    }
+    case 'flip_draw_2': {
+      drawSafe(state, playerKey, 2);
+      state.log.push(`FLIP Effect! ${p.name} drew 2 cards from ${monster.name}.`);
+      break;
+    }
+  }
+}
+
 export {
   resolveBattle,
   resolveSpellEffect,
@@ -537,4 +649,6 @@ export {
   processEventEffects,
   checkWinCondition,
   activateTrapByEffect,
+  checkExodiaWinInRules,
+  resolveFlipEffect,
 };
