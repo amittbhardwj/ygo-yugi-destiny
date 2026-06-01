@@ -5,6 +5,7 @@ import CardDetailPanel from './CardDetailPanel'
 import PhaseButtons from './PhaseButtons'
 import PlayCardModal from './PlayCardModal'
 import AttackArrow from './AttackArrow'
+import cardImageMap from '../../../server/cardImageMap.json'
 
 // Phase mapping for display
 const PHASE_MAP = {
@@ -498,6 +499,42 @@ export default function GameBoard({
 
         {/* Opponent Field */}
         <div className="field-area opponent-field-area field-egyptian">
+          {/* Deck Zone */}
+          <div className="field-side-zone opponent-deck-zone">
+            {opponent.deckCount > 0 ? (
+              <img
+                src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
+                alt="Opponent Deck"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span>DECK</span>
+            )}
+            {opponent.deckCount > 0 && (
+              <div className="field-zone-count-badge">{opponent.deckCount}</div>
+            )}
+          </div>
+
+          {/* Graveyard Zone */}
+          <div 
+            className="field-side-zone opponent-grave-zone" 
+            onClick={() => setShowGraveViewer('opponent')}
+          >
+            {opponent.grave && opponent.grave.length > 0 ? (
+              <img
+                src={cardImageMap[opponent.grave[opponent.grave.length - 1].id] || opponent.grave[opponent.grave.length - 1].imgUrl}
+                alt="Opponent Graveyard"
+                className="w-full h-full object-cover"
+                onMouseEnter={() => handleCardHover(opponent.grave[opponent.grave.length - 1])}
+              />
+            ) : (
+              <span>GRAVE</span>
+            )}
+            {opponent.grave && opponent.grave.length > 0 && (
+              <div className="field-zone-count-badge">{opponent.grave.length}</div>
+            )}
+          </div>
+
           <Field
             monsters={opponent.field?.monsters || []}
             spells={opponent.field?.spells || []}
@@ -532,6 +569,42 @@ export default function GameBoard({
 
         {/* Player Field */}
         <div className="field-area player-field-area field-egyptian">
+          {/* Graveyard Zone */}
+          <div 
+            className="field-side-zone player-grave-zone" 
+            onClick={() => setShowGraveViewer('player')}
+          >
+            {player.grave && player.grave.length > 0 ? (
+              <img
+                src={cardImageMap[player.grave[player.grave.length - 1].id] || player.grave[player.grave.length - 1].imgUrl}
+                alt="Player Graveyard"
+                className="w-full h-full object-cover"
+                onMouseEnter={() => handleCardHover(player.grave[player.grave.length - 1])}
+              />
+            ) : (
+              <span>GRAVE</span>
+            )}
+            {player.grave && player.grave.length > 0 && (
+              <div className="field-zone-count-badge">{player.grave.length}</div>
+            )}
+          </div>
+
+          {/* Deck Zone */}
+          <div className="field-side-zone player-deck-zone">
+            {player.deckCount > 0 ? (
+              <img
+                src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
+                alt="Player Deck"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span>DECK</span>
+            )}
+            {player.deckCount > 0 && (
+              <div className="field-zone-count-badge">{player.deckCount}</div>
+            )}
+          </div>
+
           <Field
             monsters={player.field?.monsters || []}
             spells={player.field?.spells || []}

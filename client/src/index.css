@@ -972,10 +972,71 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   letter-spacing: 1px;
   z-index: 2;
 }
-.opponent-field-area::before { content: 'DECK'; left: 12px; top: 18px; }
-.opponent-field-area::after { content: 'GRAVE'; right: 12px; top: 18px; }
-.player-field-area::before { content: 'GRAVE'; left: 12px; bottom: 18px; }
-.player-field-area::after { content: 'DECK'; right: 12px; bottom: 18px; }
+.opponent-field-area::before,
+.opponent-field-area::after,
+.player-field-area::before,
+.player-field-area::after {
+  display: none !important;
+}
+
+.field-side-zone {
+  position: absolute;
+  width: 58px;
+  height: 82px;
+  border: 3px ridge #b99a51;
+  background: linear-gradient(135deg, rgba(47,39,24,.72), rgba(105,91,57,.56));
+  color: rgba(255,230,136,.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: bold 10px Arial, sans-serif;
+  letter-spacing: 1px;
+  z-index: 5;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 2px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4), inset 0 0 10px rgba(0,0,0,0.5);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.field-side-zone img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.opponent-deck-zone { left: 12px; top: 18px; }
+.opponent-grave-zone { right: 12px; top: 18px; cursor: pointer; }
+.opponent-grave-zone:hover {
+  filter: brightness(1.25);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+.player-grave-zone { left: 12px; bottom: 18px; cursor: pointer; }
+.player-grave-zone:hover {
+  filter: brightness(1.25);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+.player-deck-zone { right: 12px; bottom: 18px; }
+
+.field-zone-count-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.85);
+  border-top: 1px solid #b99a51;
+  border-left: 1px solid #b99a51;
+  color: #b99a51;
+  font-size: 8px;
+  font-weight: bold;
+  padding: 1px 3px;
+  border-top-left-radius: 3px;
+  z-index: 6;
+  pointer-events: none;
+}
+
 
 .poc-field { display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .poc-zone-row { display: grid; grid-template-columns: repeat(5, 78px); gap: 8px; justify-content: center; }
