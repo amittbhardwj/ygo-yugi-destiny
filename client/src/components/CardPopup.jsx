@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import cardImageMap from '../../../server/cardImageMap.json'
 
 const ATTRIBUTE_COLORS = {
   LIGHT: '#FFD700',
@@ -9,7 +10,7 @@ const ATTRIBUTE_COLORS = {
   WIND: '#98FB98',
 }
 
-// Map card names to AI-generated image files (all 40 cards covered)
+// Map card names to AI-generated image files (local art)
 const CARD_IMAGE_MAP = {
   // Iconic monsters
   'Dark Magician': '/card-art/dark-magician.png',
@@ -60,7 +61,7 @@ const CARD_IMAGE_MAP = {
   'Mirror Force': '/card-art/mirror-force.png',
 }
 
-function getCardImage(name) {
+function getLocalCardImage(name) {
   return CARD_IMAGE_MAP[name] || null
 }
 
@@ -81,8 +82,25 @@ export default function CardPopup({ card, position }) {
   if (!card || !visible) return null
 
   const { name, type, attribute, level, atk, def, description } = card
-  const cardImage = getCardImage(name)
+  const localImage = getLocalCardImage(name)
+  
+  const getCardRemoteUrl = (c) => {
+    if (!c) return null
+    const baseId = c.id || c.cardId?.replace(/_[0-9]+$/, '')
+    return cardImageMap[baseId] || c.imgUrl || null
+  }
+
+  const remoteImage = getCardRemoteUrl(card)
+  const cardImage = localImage || remoteImage
+  
   const popupStyle = position || { x: 100, y: 100 }
+  
+  const typeLower = (type || '').toLowerCase()
+  const isSpell = typeLower.includes('spell')
+  const isTrap = typeLower.includes('trap')
+  const isMonster = !isSpell && !isTrap
+  
+  const displayType = type ? type.charAt(0).toUpperCase() + type.slice(1).toLowerCase() : 'Unknown'
 
   return (
     <div
@@ -97,11 +115,11 @@ export default function CardPopup({ card, position }) {
       {/* Card art */}
       <div className="w-full h-32 rounded-lg mb-3 flex items-center justify-center overflow-hidden"
         style={{
-          background: cardImage || imgError
+          background: cardImage && !imgError
             ? 'transparent'
-            : type === 'Spell'
+            : isSpell
               ? 'linear-gradient(135deg, #22c55e, #16a34a)'
-              : type === 'Trap'
+              : isTrap
                 ? 'linear-gradient(135deg, #a855f7, #7e22ce)'
                 : 'linear-gradient(135deg, #1e3a8a, #1e40af)',
         }}
@@ -126,12 +144,12 @@ export default function CardPopup({ card, position }) {
         {attribute && (
           <span
             className="w-5 h-5 rounded-full border border-white/30"
-            style={{ backgroundColor: ATTRIBUTE_COLORS[attribute] || '#888' }}
+            style={{ backgroundColor: ATTRIBUTE_COLORS[attribute.toUpperCase()] || '#888' }}
             title={attribute}
           />
         )}
-        <span className="text-gray-300 text-sm">{type}</span>
-        {level && (
+        <span className="text-gray-300 text-sm">{displayType}</span>
+        {isMonster && level && (
           <span className="ml-auto text-yellow-300 text-sm">
             {[...Array(Math.min(level, 12))].map((_, i) => '★').join('')}
           </span>
@@ -139,7 +157,7 @@ export default function CardPopup({ card, position }) {
       </div>
 
       {/* ATK/DEF */}
-      {(atk !== undefined || def !== undefined) && (
+      {isMonster && (atk !== undefined || def !== undefined) && (
         <div className="flex gap-4 mb-3 text-sm">
           {atk !== undefined && (
             <span className="text-red-400 font-bold">ATK: {atk}</span>

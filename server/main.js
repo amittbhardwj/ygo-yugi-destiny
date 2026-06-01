@@ -1511,11 +1511,11 @@ io.on('connection', (socket) => {
 
 
 const EXODIA_ANIMATION_PIECES = [
-  { id: 'm102', name: 'Right Arm of the Forbidden One', imgUrl: getCardImageUrl('m102') },
-  { id: 'm104', name: 'Right Leg of the Forbidden One', imgUrl: getCardImageUrl('m104') },
-  { id: 'm101', name: 'Exodia the Forbidden One', imgUrl: getCardImageUrl('m101') },
-  { id: 'm105', name: 'Left Leg of the Forbidden One', imgUrl: getCardImageUrl('m105') },
-  { id: 'm103', name: 'Left Arm of the Forbidden One', imgUrl: getCardImageUrl('m103') },
+  { id: 'm103', name: 'Right Arm of the Forbidden One', imgUrl: getCardImageUrl('m103') },
+  { id: 'm101', name: 'Right Leg of the Forbidden One', imgUrl: getCardImageUrl('m101') },
+  { id: 'm100', name: 'Exodia the Forbidden One', imgUrl: getCardImageUrl('m100') },
+  { id: 'm102', name: 'Left Leg of the Forbidden One', imgUrl: getCardImageUrl('m102') },
+  { id: 'm104', name: 'Left Arm of the Forbidden One', imgUrl: getCardImageUrl('m104') },
 ];
 
 function buildGameOverPayload(gs, winnerKey, reason) {

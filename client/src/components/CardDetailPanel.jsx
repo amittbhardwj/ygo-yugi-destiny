@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import cardImageMap from '../../../server/cardImageMap.json'
 
 const ATTRIBUTE_COLORS = {
   LIGHT: '#FFD700',
@@ -7,53 +8,6 @@ const ATTRIBUTE_COLORS = {
   FIRE: '#FF4500',
   EARTH: '#8B4513',
   WIND: '#98FB98',
-}
-
-const CARD_IMAGE_MAP = {
-  'Dark Magician': '/card-art/dark-magician.png',
-  'Blue-Eyes White Dragon': '/card-art/blue-eyes-white-dragon.png',
-  'Red-Eyes Black Dragon': '/card-art/red-eyes-black-dragon.png',
-  'Dark Hole': '/card-art/dark-hole.png',
-  'Mirror Force': '/card-art/mirror-force.png',
-  'Monster Reborn': '/card-art/monster-reborn.png',
-  'Summoned Skull': '/card-art/summoned-skull.png',
-  'Gaia The Fierce Knight': '/card-art/gaia-the-fierce-knight.png',
-  'Celtic Guardian': '/card-art/celtic-guardian.png',
-  'Ralf': '/card-art/ralf.png',
-  'Golem': '/card-art/golem.png',
-  'Dragoner': '/card-art/dragoner.png',
-  'Feral Imp': '/card-art/feral-imp.png',
-  'Koumori Dragon': '/card-art/koumori-dragon.png',
-  'One-Eyed Shield': '/card-art/one-eyed-shield.png',
-  'Lord of D.': '/card-art/lord-of-d.png',
-  'Kuriboh': '/card-art/kuriboh.png',
-  'Mammoth Graveyard': '/card-art/mammoth-graveyard.png',
-  'Wolf': '/card-art/wolf.png',
-  'Mystic Tomato': '/card-art/mystic-tomato.png',
-  'Enchanting Mists': '/card-art/enchanting-mists.png',
-  'Shark': '/card-art/shark.png',
-  'Charubin': '/card-art/charubin.png',
-  'Dark Energy': '/card-art/dark-energy.png',
-  'Dark Magician Girl': '/card-art/dark-magician-girl.png',
-  'Armored Zombie': '/card-art/armored-zombie.png',
-  'Fire Reaper': '/card-art/fire-reaper.png',
-  'Ancient Brain': '/card-art/ancient-brain.png',
-  'Dark Hiero': '/card-art/dark-hiero.png',
-  'Hoshiri': '/card-art/hoshiri.png',
-  'Doma': '/card-art/doma.png',
-  'Parrot': '/card-art/parrot.png',
-  'Monster Eye': '/card-art/monster-eye.png',
-  'Drollman': '/card-art/drollman.png',
-  'Firegrass': '/card-art/firegrass.png',
-  'My Bodyguard': '/card-art/my-bodyguard.png',
-  'Crawling Dragon': '/card-art/crawling-dragon.png',
-  'Lesser Dragon': '/card-art/lesser-dragon.png',
-  'Hitod': '/card-art/hitod.png',
-  'Dark King': '/card-art/dark-king.png',
-  'Shadow Specter': '/card-art/shadow-specter.png',
-  'Yomi': '/card-art/yomi.png',
-  'Rod of the Magical Veil': '/card-art/rod-of-the-magical-veil.png',
-  'Kappa': '/card-art/kappa.png',
 }
 
 const getLocalCardArtUrl = (cardName) => {
@@ -72,7 +26,7 @@ function AttributeDot({ attribute }) {
   return (
     <div
       className="w-6 h-6 rounded-full border-2 border-egyptian-gold shadow-lg"
-      style={{ backgroundColor: ATTRIBUTE_COLORS[attribute] || '#888' }}
+      style={{ backgroundColor: ATTRIBUTE_COLORS[attribute.toUpperCase()] || '#888' }}
       title={attribute}
     />
   )
@@ -94,12 +48,19 @@ export default function CardDetailPanel({ card, onClose }) {
   
   const name = card?.name || ''
   const localUrl = getLocalCardArtUrl(name)
-  const remoteUrl = card?.imgUrl || (card?.id ? `https://storage.googleapis.com/ygoprodeck.com/pics/${card.id}.jpg` : null)
+  
+  const getCardRemoteUrl = (c) => {
+    if (!c) return null
+    const baseId = c.id || c.cardId?.replace(/_[0-9]+$/, '')
+    return cardImageMap[baseId] || c.imgUrl || null
+  }
+
+  const remoteUrl = getCardRemoteUrl(card)
   const [imgSrc, setImgSrc] = useState(localUrl || remoteUrl)
 
   useEffect(() => {
     const lUrl = getLocalCardArtUrl(card?.name)
-    const rUrl = card?.imgUrl || (card?.id ? `https://storage.googleapis.com/ygoprodeck.com/pics/${card.id}.jpg` : null)
+    const rUrl = getCardRemoteUrl(card)
     setImgSrc(lUrl || rUrl)
   }, [card])
 

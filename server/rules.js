@@ -55,7 +55,7 @@ function pickStrongest(monsters) {
   return monsters.reduce((best, card) => (!best || (card.atk || 0) > (best.atk || 0) ? card : best), null);
 }
 
-const EXODIA_IDS = ['m101', 'm102', 'm103', 'm104', 'm105'];
+const EXODIA_IDS = ['m100', 'm101', 'm102', 'm103', 'm104'];
 function getBaseCardId(card) {
   return card?.id || card?.cardId?.replace(/_[0-9]+$/, '') || null;
 }

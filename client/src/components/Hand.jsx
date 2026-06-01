@@ -15,7 +15,7 @@ export default function Hand({ cards, isOpponent = false, onCardClick, selectabl
     <div className="ygo-hand ygo-hand-player hand-scroll">
       {cards.map((card, index) => (
         <Card
-          key={card.id || index}
+          key={card.uid || card.cardId || card.id || index}
           card={card}
           faceDown={false}
           selectable={selectable}

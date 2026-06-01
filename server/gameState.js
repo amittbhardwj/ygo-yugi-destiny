@@ -7,7 +7,7 @@ import CARDS from './cards.js';
 import { getCardImageUrl } from './cardImages.js';
 
 const STARTING_LP = 8000;
-const EXODIA_IDS = ['m101', 'm102', 'm103', 'm104', 'm105'];
+const EXODIA_IDS = ['m100', 'm101', 'm102', 'm103', 'm104'];
 
 // Fisher-Yates shuffle
 function shuffleDeck(deck) {

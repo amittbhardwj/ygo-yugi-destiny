@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import cardImageMap from '../../../server/cardImageMap.json'
 
 const ATTRIBUTE_COLORS = {
   LIGHT: '#FFD700',
@@ -39,18 +40,20 @@ export default function Card({ card, faceDown = false, selected = false, selecta
 
   const name = card?.name || ''
   const localUrl = getLocalCardArtUrl(name)
-  const remoteUrl = card?.imgUrl || (card?.id
-    ? `https://storage.googleapis.com/ygoprodeck.com/pics/${card.id}.jpg`
-    : null)
 
+  const getCardRemoteUrl = (c) => {
+    if (!c) return null
+    const baseId = c.id || c.cardId?.replace(/_[0-9]+$/, '')
+    return cardImageMap[baseId] || c.imgUrl || null
+  }
+
+  const remoteUrl = getCardRemoteUrl(card)
   const [imgSrc, setImgSrc] = useState(localUrl || remoteUrl)
 
   useEffect(() => {
     const freshName = card?.name || ''
     const freshLocal = getLocalCardArtUrl(freshName)
-    const freshRemote = card?.imgUrl || (card?.id
-      ? `https://storage.googleapis.com/ygoprodeck.com/pics/${card.id}.jpg`
-      : null)
+    const freshRemote = getCardRemoteUrl(card)
     setImgSrc(freshLocal || freshRemote)
     setImgLoaded(false)
   }, [card])
@@ -156,7 +159,7 @@ export default function Card({ card, faceDown = false, selected = false, selecta
       ) : (
         renderCardFace()
       )}
-      {!faceDown && size === 'field' && (card.atk !== undefined || card.def !== undefined) && (
+      {!faceDown && size === 'field' && (getCardType() === 'normal' || getCardType() === 'effect') && (card.atk !== undefined || card.def !== undefined) && (
         <div className="field-card-statline">{card.atk ?? '-'} / {card.def ?? '-'}</div>
       )}
       {isHovered && !faceDown && <div className="absolute inset-0 rounded-none shadow-md shadow-yellow-400/30 pointer-events-none" />}

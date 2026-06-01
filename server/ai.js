@@ -40,7 +40,7 @@ function getCardBase(cardId) {
 function isExodiaPiece(cardId) {
   if (!cardId) return false;
   const id = cardId.split('_')[0];
-  return ['m101', 'm102', 'm103', 'm104', 'm105'].includes(id);
+  return ['m100', 'm101', 'm102', 'm103', 'm104'].includes(id);
 }
 
 function getMonsterAtk(card) {
