@@ -135,8 +135,8 @@ function drawCard(state, playerKey) {
     state.log.push(`${player.name} cannot draw a card! ${state.players[winnerKey].name} wins!`);
     return null;
   }
-  const card = p.deck.pop();
-  p.hand.push(card);
+  const card = player.deck.pop();
+  player.hand.push(card);
   checkExodiaWin(state, playerKey);
   return card;
 }
