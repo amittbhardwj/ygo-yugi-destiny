@@ -401,14 +401,40 @@ function serialize(state, forSocketId) {
       deck: isOwner ? player.deck.map(c => ({ ...c, imgUrl: getCardImageUrl(c.cardId) })) : player.deck.map(() => ({ hidden: true })),
       deckCount: player.deck.length,
       field: {
-        monsters: player.field.monsters.map(m => ({
-          ...m,
-          imgUrl: getCardImageUrl(m.cardId),
-        })),
-        spells: player.field.spells.map(s => ({
-          ...s,
-          imgUrl: getCardImageUrl(s.cardId),
-        })),
+        monsters: player.field.monsters.map(m => {
+          if (!m) return null;
+          if (!isOwner && m.faceDown) {
+            return {
+              uid: m.uid,
+              cardId: m.cardId,
+              faceDown: true,
+              position: m.position,
+              hidden: true,
+              type: 'monster'
+            };
+          }
+          return {
+            ...m,
+            imgUrl: getCardImageUrl(m.cardId),
+          };
+        }),
+        spells: player.field.spells.map(s => {
+          if (!s) return null;
+          if (!isOwner && s.faceDown) {
+            return {
+              uid: s.uid,
+              cardId: s.cardId,
+              faceDown: true,
+              position: s.position,
+              hidden: true,
+              type: s.type
+            };
+          }
+          return {
+            ...s,
+            imgUrl: getCardImageUrl(s.cardId),
+          };
+        }),
       },
       grave: player.grave,
     };

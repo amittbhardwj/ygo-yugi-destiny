@@ -89,6 +89,31 @@ export default function CardDetailPanel({ card, onClose }) {
     )
   }
 
+  if (card.hidden) {
+    return (
+      <div className="card-detail-panel">
+        <div className="detail-inner-border">
+          <div className="card-image-area" style={{ borderColor: '#888' }}>
+            <div className="w-full h-full bg-[#5c3317] flex items-center justify-center overflow-hidden">
+              <img
+                src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
+                alt="Face-down Card"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+          <div className="card-info-content">
+            <div className="text-egyptian-gold text-lg font-bold mb-2">Face-down Card</div>
+            <div className="text-gray-400 text-sm mb-3">Opponent's Card</div>
+            <div className="text-gray-300 text-xs leading-relaxed p-2 bg-gray-800/30 rounded">
+              The details of this card are hidden.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { attribute, level, atk, def, description, species } = card
   const rawType = card.type || ''
   const normalizedType = rawType.toLowerCase()

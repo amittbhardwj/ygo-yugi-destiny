@@ -1916,7 +1916,7 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
 .game-board-root {
   display: flex !important;
   flex-direction: row !important;
-  justify-content: space-between;
+  justify-content: center !important;
   align-items: stretch;
   background: 
     radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.08), transparent 50%),
@@ -1926,11 +1926,11 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   border: 10px double #c6a34a !important; /* Thick classic double golden frame */
   box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.95) !important;
   padding: 12px !important;
-  gap: 12px !important;
+  gap: 20px !important;
 }
 
-/* Slabs / Panels (Card Intel left, phase/deck right) */
-.left-panel, .right-panel, .phase-column {
+/* Slabs / Panels (Card Intel left, phase column side) */
+.left-panel, .phase-column {
   background: linear-gradient(180deg, #1b0f26 0%, #0f0817 50%, #07030a 100%) !important;
   border: 4px ridge #c6a34a !important;
   box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 6px 12px rgba(0, 0, 0, 0.7) !important;
@@ -1942,9 +1942,10 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   width: 260px !important;
 }
 
-.right-panel {
+.phase-column {
   padding: 8px !important;
-  width: 170px !important;
+  width: 140px !important;
+  margin: 0 !important;
 }
 
 /* Duel Side Title */

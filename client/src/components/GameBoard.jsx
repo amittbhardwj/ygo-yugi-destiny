@@ -497,128 +497,161 @@ export default function GameBoard({
           <Hand cards={opponent.hand || []} isOpponent={true} onHover={handleCardHover} />
         </div>
 
-        {/* Opponent Field */}
-        <div className="field-area opponent-field-area field-egyptian">
-          {/* Deck Zone */}
-          <div className="field-side-zone opponent-deck-zone">
-            {opponent.deckCount > 0 ? (
-              <img
-                src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
-                alt="Opponent Deck"
-                className="w-full h-full object-cover"
+        <div className="flex gap-4 items-stretch justify-center relative mt-3 mb-3">
+          {/* Main Card Zones Grid */}
+          <div className="flex-1 flex flex-col gap-3">
+            {/* Opponent Field */}
+            <div className="field-area opponent-field-area field-egyptian">
+              {/* Deck Zone */}
+              <div className="field-side-zone opponent-deck-zone">
+                {opponent.deckCount > 0 ? (
+                  <img
+                    src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
+                    alt="Opponent Deck"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>DECK</span>
+                )}
+                {opponent.deckCount > 0 && (
+                  <div className="field-zone-count-badge">{opponent.deckCount}</div>
+                )}
+              </div>
+
+              {/* Graveyard Zone */}
+              <div 
+                className="field-side-zone opponent-grave-zone" 
+                onClick={() => setShowGraveViewer('opponent')}
+              >
+                {opponent.grave && opponent.grave.length > 0 ? (
+                  <img
+                    src={cardImageMap[opponent.grave[opponent.grave.length - 1].id] || opponent.grave[opponent.grave.length - 1].imgUrl}
+                    alt="Opponent Graveyard"
+                    className="w-full h-full object-cover"
+                    onMouseEnter={() => handleCardHover(opponent.grave[opponent.grave.length - 1])}
+                  />
+                ) : (
+                  <span>GRAVE</span>
+                )}
+                {opponent.grave && opponent.grave.length > 0 && (
+                  <div className="field-zone-count-badge">{opponent.grave.length}</div>
+                )}
+              </div>
+
+              <Field
+                monsters={opponent.field?.monsters || []}
+                spells={opponent.field?.spells || []}
+                isOpponent={true}
+                attackTargets={attackTargets}
+                selectable={isTargetingMode}
+                onMonsterClick={(card, index) => {
+                  if (isTargetingMode) {
+                    if (targetingType === 'opponent_monster' || targetingType === 'any_monster') {
+                      handleTargetSelected(card)
+                    }
+                  } else if (canBattle && selectedMonster !== null && attackTargets.includes(index)) {
+                    onAttackTarget(index)
+                  }
+                }}
+                onSpellClick={(card, index) => {
+                  if (isTargetingMode && targetingType === 'any_monster') {
+                    handleTargetSelected(card)
+                  }
+                }}
+                onCardHover={handleCardHover}
+                duelAnimation={duelAnimation}
               />
-            ) : (
-              <span>DECK</span>
-            )}
-            {opponent.deckCount > 0 && (
-              <div className="field-zone-count-badge">{opponent.deckCount}</div>
-            )}
+            </div>
+
+            {/* VS Divider */}
+            <div className="vs-divider">
+              <div className="vs-line"></div>
+              <div className="vs-text">VS</div>
+              <div className="vs-line"></div>
+            </div>
+
+            {/* Player Field */}
+            <div className="field-area player-field-area field-egyptian">
+              {/* Graveyard Zone */}
+              <div 
+                className="field-side-zone player-grave-zone" 
+                onClick={() => setShowGraveViewer('player')}
+              >
+                {player.grave && player.grave.length > 0 ? (
+                  <img
+                    src={cardImageMap[player.grave[player.grave.length - 1].id] || player.grave[player.grave.length - 1].imgUrl}
+                    alt="Player Graveyard"
+                    className="w-full h-full object-cover"
+                    onMouseEnter={() => handleCardHover(player.grave[player.grave.length - 1])}
+                  />
+                ) : (
+                  <span>GRAVE</span>
+                )}
+                {player.grave && player.grave.length > 0 && (
+                  <div className="field-zone-count-badge">{player.grave.length}</div>
+                )}
+              </div>
+
+              {/* Deck Zone */}
+              <div className="field-side-zone player-deck-zone">
+                {player.deckCount > 0 ? (
+                  <img
+                    src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
+                    alt="Player Deck"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>DECK</span>
+                )}
+                {player.deckCount > 0 && (
+                  <div className="field-zone-count-badge">{player.deckCount}</div>
+                )}
+              </div>
+
+              <Field
+                monsters={player.field?.monsters || []}
+                spells={player.field?.spells || []}
+                isOpponent={false}
+                selectedMonster={selectedMonster}
+                attackTargets={attackTargets}
+                selectable={canPlayCard || canBattle || isTargetingMode || !!tributeSelection}
+                onMonsterClick={handleMonsterClick}
+                onSpellClick={handleSpellClick}
+                onEmptySlotClick={() => {}}
+                onCardHover={handleCardHover}
+                duelAnimation={duelAnimation}
+                tributeSelectedIds={tributeSelection ? tributeSelection.selectedIds : []}
+              />
+            </div>
           </div>
 
-          {/* Graveyard Zone */}
-          <div 
-            className="field-side-zone opponent-grave-zone" 
-            onClick={() => setShowGraveViewer('opponent')}
-          >
-            {opponent.grave && opponent.grave.length > 0 ? (
-              <img
-                src={cardImageMap[opponent.grave[opponent.grave.length - 1].id] || opponent.grave[opponent.grave.length - 1].imgUrl}
-                alt="Opponent Graveyard"
-                className="w-full h-full object-cover"
-                onMouseEnter={() => handleCardHover(opponent.grave[opponent.grave.length - 1])}
-              />
-            ) : (
-              <span>GRAVE</span>
-            )}
-            {opponent.grave && opponent.grave.length > 0 && (
-              <div className="field-zone-count-badge">{opponent.grave.length}</div>
-            )}
+          {/* Phase Column - integrated directly onto field side */}
+          <div className="phase-column flex flex-col items-center justify-between p-4 w-[140px] self-stretch">
+            <div className="phase-title mb-2">Phase</div>
+            <PhaseButtons
+              currentPhase={rawPhase}
+              isYourTurn={isYourTurn}
+              onEndPhase={handleEndPhaseClick}
+            />
+            <div className="action-buttons mt-4 flex flex-col gap-2 w-full">
+              <button
+                onClick={handleEndPhaseClick}
+                disabled={!isYourTurn}
+                className="action-btn action-btn-end-phase w-full"
+                title="Advance to next phase"
+              >
+                NEXT PHASE
+              </button>
+              <button
+                onClick={() => setConfirmEndTurn(true)}
+                disabled={!isYourTurn}
+                className="action-btn action-btn-end-turn w-full"
+                title="End your turn"
+              >
+                END TURN
+              </button>
+            </div>
           </div>
-
-          <Field
-            monsters={opponent.field?.monsters || []}
-            spells={opponent.field?.spells || []}
-            isOpponent={true}
-            attackTargets={attackTargets}
-            selectable={isTargetingMode}
-            onMonsterClick={(card, index) => {
-              if (isTargetingMode) {
-                if (targetingType === 'opponent_monster' || targetingType === 'any_monster') {
-                  handleTargetSelected(card)
-                }
-              } else if (canBattle && selectedMonster !== null && attackTargets.includes(index)) {
-                onAttackTarget(index)
-              }
-            }}
-            onSpellClick={(card, index) => {
-              if (isTargetingMode && targetingType === 'any_monster') {
-                handleTargetSelected(card)
-              }
-            }}
-            onCardHover={handleCardHover}
-            duelAnimation={duelAnimation}
-          />
-        </div>
-
-        {/* VS Divider */}
-        <div className="vs-divider">
-          <div className="vs-line"></div>
-          <div className="vs-text">VS</div>
-          <div className="vs-line"></div>
-        </div>
-
-        {/* Player Field */}
-        <div className="field-area player-field-area field-egyptian">
-          {/* Graveyard Zone */}
-          <div 
-            className="field-side-zone player-grave-zone" 
-            onClick={() => setShowGraveViewer('player')}
-          >
-            {player.grave && player.grave.length > 0 ? (
-              <img
-                src={cardImageMap[player.grave[player.grave.length - 1].id] || player.grave[player.grave.length - 1].imgUrl}
-                alt="Player Graveyard"
-                className="w-full h-full object-cover"
-                onMouseEnter={() => handleCardHover(player.grave[player.grave.length - 1])}
-              />
-            ) : (
-              <span>GRAVE</span>
-            )}
-            {player.grave && player.grave.length > 0 && (
-              <div className="field-zone-count-badge">{player.grave.length}</div>
-            )}
-          </div>
-
-          {/* Deck Zone */}
-          <div className="field-side-zone player-deck-zone">
-            {player.deckCount > 0 ? (
-              <img
-                src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
-                alt="Player Deck"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span>DECK</span>
-            )}
-            {player.deckCount > 0 && (
-              <div className="field-zone-count-badge">{player.deckCount}</div>
-            )}
-          </div>
-
-          <Field
-            monsters={player.field?.monsters || []}
-            spells={player.field?.spells || []}
-            isOpponent={false}
-            selectedMonster={selectedMonster}
-            attackTargets={attackTargets}
-            selectable={canPlayCard || canBattle || isTargetingMode || !!tributeSelection}
-            onMonsterClick={handleMonsterClick}
-            onSpellClick={handleSpellClick}
-            onEmptySlotClick={() => {}}
-            onCardHover={handleCardHover}
-            duelAnimation={duelAnimation}
-            tributeSelectedIds={tributeSelection ? tributeSelection.selectedIds : []}
-          />
         </div>
 
         {/* Bottom - Player Info */}
@@ -639,37 +672,6 @@ export default function GameBoard({
           />
           <div className="hand-label">YOUR HAND ({player.hand?.length || 0})</div>
         </div>
-      </div>
-
-      <div className="right-panel">
-        <div className="phase-column">
-          <div className="phase-title">Duel Phase</div>
-          <PhaseButtons
-            currentPhase={rawPhase}
-            isYourTurn={isYourTurn}
-            onEndPhase={handleEndPhaseClick}
-          />
-          <div className="action-buttons">
-            <button
-              onClick={handleEndPhaseClick}
-              disabled={!isYourTurn}
-              className="action-btn action-btn-end-phase"
-              title="Advance to next phase"
-            >
-              NEXT PHASE
-            </button>
-            <button
-              onClick={() => setConfirmEndTurn(true)}
-              disabled={!isYourTurn}
-              className="action-btn action-btn-end-turn"
-              title="End your turn"
-            >
-              END TURN
-            </button>
-          </div>
-        </div>
-
-        <DeckSidePanel cards={player.deck || []} onCardSelect={setHoveredCard} />
       </div>
 
       {/* Game Overlay */}

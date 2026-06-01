@@ -79,7 +79,7 @@ export default function CardPopup({ card, position }) {
     setImgError(false)
   }, [card])
 
-  if (!card || !visible) return null
+  if (!card || !visible || card.hidden) return null
 
   const { name, type, attribute, level, atk, def, description } = card
   const localImage = getLocalCardImage(name)
