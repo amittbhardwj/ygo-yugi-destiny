@@ -4,6 +4,7 @@ import Field from './Field'
 import CardDetailPanel from './CardDetailPanel'
 import PhaseButtons from './PhaseButtons'
 import PlayCardModal from './PlayCardModal'
+import AttackArrow from './AttackArrow'
 
 // Phase mapping for display
 const PHASE_MAP = {
@@ -234,7 +235,17 @@ export default function GameBoard({
   const [playerDamageFlash, setPlayerDamageFlash] = useState(false)
   const [opponentDamageFlash, setOpponentDamageFlash] = useState(false)
 
+  // Mouse tracking for attack arrow
+  const [mouseCoords, setMouseCoords] = useState(null)
+
+  const handleMouseMove = useCallback((e) => {
+    if (selectedMonster !== null) {
+      setMouseCoords({ x: e.clientX, y: e.clientY })
+    }
+  }, [selectedMonster])
+
   useEffect(() => {
+
     if (player?.lp < prevPlayerLp) {
       setPlayerDamageFlash(true)
       const timer = setTimeout(() => setPlayerDamageFlash(false), 1000)
@@ -411,7 +422,7 @@ export default function GameBoard({
   }
 
   return (
-    <div className="game-board-root">
+    <div className={`game-board-root ${selectedMonster !== null && canBattle ? 'cursor-crosshair' : ''}`} onMouseMove={handleMouseMove}>
       <YugiGuide phase={rawPhase} isYourTurn={isYourTurn} />
       {/* Left Panel - Card Detail */}
       <div className="left-panel">
@@ -462,7 +473,14 @@ export default function GameBoard({
         )}
 
         {/* Top - Opponent Info */}
-        <div className="top-bar">
+        <div 
+          className={`top-bar ${selectedMonster !== null && attackTargets.length === 0 ? 'cursor-pointer hover:bg-red-900/40 transition-colors rounded' : ''}`}
+          onClick={() => {
+            if (canBattle && selectedMonster !== null && attackTargets.length === 0) {
+              onAttackTarget('direct')
+            }
+          }}
+        >
           <LifePointsDisplay name={opponent.name} lp={opponent.lp} isPlayer={false} damage={opponentDamageFlash ? (prevOpponentLp - opponent.lp) : null} />
           <div className="duel-turn-chip">
             <span>{turnLabel}</span>
@@ -831,6 +849,14 @@ export default function GameBoard({
             <span className="text-ygo-gold font-bold text-sm tracking-wide">Waiting for opponent response...</span>
           </div>
         </div>
+      )}
+
+      {/* Attack Targeting Arrow Overlay */}
+      {selectedMonster !== null && mouseCoords && canBattle && (
+        <AttackArrow
+          startElementId={`player-monster-zone-${selectedMonster}`}
+          endCoords={mouseCoords}
+        />
       )}
     </div>
   )

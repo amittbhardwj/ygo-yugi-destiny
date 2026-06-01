@@ -29,9 +29,16 @@ export default function Field({
     if (!card) {
       return (
         <div
+          id={`${isOpponent ? 'opponent' : 'player'}-${type}-zone-${index}`}
           key={index}
-          className={`poc-zone empty-zone ${zoneClass} ${selectable && !isOpponent ? 'poc-zone-selectable' : ''}`}
-          onClick={() => onEmptySlotClick && selectable && !isOpponent && onEmptySlotClick(index, type)}
+          className={`poc-zone empty-zone ${zoneClass} ${(selectable && !isOpponent) || (isOpponent && selectable && attackTargets.length === 0) ? 'poc-zone-selectable' : ''}`}
+          onClick={() => {
+            if (isOpponent && selectable && attackTargets.length === 0 && onEmptySlotClick) {
+              onEmptySlotClick('direct', type)
+            } else if (onEmptySlotClick && selectable && !isOpponent) {
+              onEmptySlotClick(index, type)
+            }
+          }}
         >
           <span className="poc-zone-label">{type === 'monster' ? 'M' : 'S/T'}</span>
         </div>
@@ -39,24 +46,26 @@ export default function Field({
     }
 
     return (
-      <Card
-        key={card.id || index}
-        card={card}
-        faceDown={card.faceDown || false}
-        selected={isSelected}
-        selectable={selectable && !isOpponent}
-        isAttackTarget={isTarget}
-        animationClass={animationClass}
-        onClick={() => {
-          if (type === 'monster') {
-            onMonsterClick && onMonsterClick(card, index)
-          } else {
-            onSpellClick && onSpellClick(card, index)
-          }
-        }}
-        onHover={onCardHover ? (c) => onCardHover(c) : undefined}
-        size="field"
-      />
+      <div id={`${isOpponent ? 'opponent' : 'player'}-${type}-zone-${index}`} className="relative h-full flex items-center justify-center">
+        <Card
+          key={card.id || index}
+          card={card}
+          faceDown={card.faceDown || false}
+          selected={isSelected}
+          selectable={selectable && !isOpponent}
+          isAttackTarget={isTarget}
+          animationClass={animationClass}
+          onClick={() => {
+            if (type === 'monster') {
+              onMonsterClick && onMonsterClick(card, index)
+            } else {
+              onSpellClick && onSpellClick(card, index)
+            }
+          }}
+          onHover={onCardHover ? (c) => onCardHover(c) : undefined}
+          size="field"
+        />
+      </div>
     )
   }
 

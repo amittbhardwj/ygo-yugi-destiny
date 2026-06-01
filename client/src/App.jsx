@@ -381,13 +381,17 @@ export default function App() {
   const handleAttackTarget = useCallback((targetIndex) => {
     console.log('[handleAttackTarget] targetIndex=', targetIndex, 'selectedMonster=', state.selectedMonster);
     if (state.selectedMonster !== null) {
-      // Convert index to cardId for server - use findIndex to handle sparse arrays
       const myMonsters = state.gameState?.player?.field?.monsters || [];
       const attacker = myMonsters[state.selectedMonster]
       const attackerId = attacker?.cardId
       
-      // The targetIndex is a raw zone index from the sparse opponentMonsters array
-      // We need to convert it to a cardId
+      if (targetIndex === 'direct') {
+        if (attackerId) {
+          emit('direct-attack', { attackerId })
+        }
+        return
+      }
+
       const oppMonsters = state.gameState?.opponent?.field?.monsters || []
       const target = oppMonsters[targetIndex]
       const targetId = target?.cardId
