@@ -113,7 +113,6 @@ export default function Card({ card, faceDown = false, selected = false, selecta
             <img
               src={imgSrc}
               alt={name}
-              loading="lazy"
               onLoad={() => setImgLoaded(true)}
               onError={handleImgError}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}

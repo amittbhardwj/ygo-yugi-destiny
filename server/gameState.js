@@ -150,6 +150,17 @@ function summonMonster(state, playerKey, cardId, position = 'defense', tributeId
 
   const card = p.hand[cardIndex];
 
+  // Limit 1 Normal Summon/Set per turn
+  if (p.hasNormalSummoned) {
+    return { success: false, error: 'You have already Normal Summoned or Set a monster this turn.' };
+  }
+
+  // Prevent Normal Summoning monsters that must be Special Summoned
+  const desc = card.description || '';
+  if (desc.includes('Cannot be Normal Summoned') || card.category === 'ritual' || card.category === 'fusion') {
+    return { success: false, error: 'This card cannot be Normal Summoned or Set.' };
+  }
+
   // Check Tribute requirements
   const level = card.level || 0;
   let requiredTributes = 0;

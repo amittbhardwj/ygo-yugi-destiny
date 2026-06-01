@@ -381,7 +381,10 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
             score = 10;
           }
         } else {
-          if (attackerAtk > currentDef) {
+          if (current.faceDown) {
+            // Attack face-down monsters without knowing their DEF!
+            score = 50;
+          } else if (attackerAtk > currentDef) {
             score = 100;
           }
         }
