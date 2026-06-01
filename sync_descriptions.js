@@ -59,17 +59,22 @@ async function run() {
             console.log(`Fetching desc for ${id} (ygopro ${ygoproId})...`)
             const desc = await fetchCardDesc(ygoproId)
             if (desc) {
-              // Escape quotes and newlines
               const safeDesc = desc.replace(/'/g, "\\'").replace(/\n/g, "\\n").replace(/\r/g, "")
               
-              // Replace description: '...' or description: "..."
-              const descRegex = /description:\s*['"](.*?)['"](,?)/s
-              if (descRegex.test(block)) {
-                const newBlock = block.replace(descRegex, `description: '${safeDesc}'$2`)
+              // Find everything from description: to the end of the block
+              const descStart = block.indexOf('description:')
+              if (descStart !== -1) {
+                // Find the closing brace of the block, which is at the end
+                // since block = "{ ... }"
+                // Wait, block includes the closing brace `}`
+                // Let's just replace from description: up to just before }
+                // We know block ends with ' }' or '}'
+                const beforeDesc = block.substring(0, descStart)
+                const newBlock = beforeDesc + `description: '${safeDesc}' }`
                 replacements.push({ old: block, new: newBlock })
               }
             }
-            await new Promise(r => setTimeout(r, 100))
+            await new Promise(r => setTimeout(r, 50))
           }
         }
       }
