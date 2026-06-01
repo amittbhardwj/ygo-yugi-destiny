@@ -66,12 +66,9 @@ export default function Card({ card, faceDown = false, selected = false, selecta
   const getCardType = () => {
     if (!card) return 'normal'
     const t = (card.type || '').toLowerCase()
-    if (t === 'monster') return card.isEffect ? 'effect' : 'normal'
-    if (t === 'spell') return 'spell'
-    if (t === 'trap') return 'trap'
-    if (card.type === 'Monster') return card.isEffect ? 'effect' : 'normal'
-    if (card.type === 'Spell') return 'spell'
-    if (card.type === 'Trap') return 'trap'
+    if (t.includes('monster')) return card.isEffect ? 'effect' : 'normal'
+    if (t.includes('spell')) return 'spell'
+    if (t.includes('trap')) return 'trap'
     return 'normal'
   }
 

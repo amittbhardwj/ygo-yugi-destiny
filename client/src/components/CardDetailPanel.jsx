@@ -132,8 +132,8 @@ export default function CardDetailPanel({ card, onClose }) {
   const rawType = card.type || ''
   const normalizedType = rawType.toLowerCase()
   const displayType = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1).toLowerCase() : 'Unknown'
-  const isSpell = normalizedType === 'spell'
-  const isTrap = normalizedType === 'trap'
+  const isSpell = normalizedType.includes('spell')
+  const isTrap = normalizedType.includes('trap')
   const isMonster = !isSpell && !isTrap
 
   // Determine card type color for border
