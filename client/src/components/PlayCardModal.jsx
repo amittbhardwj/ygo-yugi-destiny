@@ -29,13 +29,15 @@ export default function PlayCardModal({ card, onSummon, onSet, onCancel }) {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <button
-              onClick={onSummon}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-colors"
-            >
-              <span className="text-xl">✨</span>
-              <span>{type === 'spell' ? 'ACTIVATE' : 'ACTIVATE'}</span>
-            </button>
+            {type === 'spell' && (
+              <button
+                onClick={onSummon}
+                className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition-colors"
+              >
+                <span className="text-xl">✨</span>
+                <span>ACTIVATE</span>
+              </button>
+            )}
             <button
               onClick={onSet}
               className="flex items-center justify-center gap-2 px-6 py-3 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded-lg transition-colors"

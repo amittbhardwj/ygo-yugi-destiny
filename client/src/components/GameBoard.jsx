@@ -30,30 +30,25 @@ function normalizePhase(phase) {
   return SERVER_PHASE_MAP[phase] || phase
 }
 
-function LifePointsDisplay({ name, lp, isPlayer, damage = null }) {
+function LifePointsDisplay({ lp, isPlayer, damage = null }) {
   const lpValue = lp || 0
-  const lpPercent = Math.max(0, Math.min(100, (lpValue / 8000) * 100))
   const lpString = String(lpValue).padStart(4, '0')
   const digits = lpString.split('')
 
   return (
-    <div className={`lp-wing-frame-poc flex flex-col items-center justify-center ${isPlayer ? 'lp-player-poc' : 'lp-opponent-poc'} ${damage ? 'damage-flash' : ''}`}>
-      <span className="lp-name-poc">{name}</span>
-      <div className="flex items-center gap-1 relative">
-        <span className="lp-wing-scarab-left">𓆣</span>
-        <div className="flex gap-1 bg-black/40 p-1 border border-egyptian-gold/30 rounded-lg shadow-inner">
-          {digits.map((digit, i) => (
-            <div key={i} className="lp-digit-urn">
-              {digit}
-            </div>
-          ))}
-        </div>
-        <span className="lp-wing-scarab-right">𓆣</span>
+    <div className={`lp-wing-frame-poc flex items-center justify-start gap-2 ${isPlayer ? 'lp-player-poc' : 'lp-opponent-poc'} ${damage ? 'damage-flash' : ''}`}>
+      <div className="lp-winged-orb relative shrink-0">
+        <div className="winged-disc-wings" />
+        <div className="winged-disc-orb" />
       </div>
-      <div className="lp-meter-poc" aria-hidden="true">
-        <div style={{ width: `${lpPercent}%` }} />
+      <div className="flex gap-1 bg-black/30 p-1 border border-[#c6a34a]/30 rounded-md shadow-inner relative">
+        {digits.map((digit, i) => (
+          <div key={i} className="lp-digit-urn">
+            {digit}
+          </div>
+        ))}
+        {damage ? <span className="floating-damage-poc">-{damage}</span> : null}
       </div>
-      {damage ? <span className="floating-damage-poc">-{damage}</span> : null}
     </div>
   )
 }
@@ -434,54 +429,52 @@ export default function GameBoard({
   return (
     <div className={`game-board-root ${selectedMonster !== null && canBattle ? 'cursor-crosshair' : ''}`} onMouseMove={handleMouseMove}>
       <YugiGuide phase={rawPhase} isYourTurn={isYourTurn} />
-      {/* Left Panel - Card Detail */}
-      <div className="left-panel">
-        <div className="duel-side-title">Card Intel</div>
-        <CardDetailPanel card={detailCard} />
-      </div>
-
-      {/* Column 2: LP & Phase Column (vertical stack of LP and Phase selector) */}
-      <div className="lp-phase-column flex flex-col justify-between items-center py-2 self-stretch w-[140px] shrink-0 z-10">
+      
+      {/* Left Panel - Card Detail & LP */}
+      <div className="left-panel flex flex-col justify-between h-full py-2 z-10 shrink-0">
         <LifePointsDisplay 
-          name={opponent.name} 
           lp={opponent.lp} 
           isPlayer={false} 
           damage={opponentDamageFlash ? (prevOpponentLp - opponent.lp) : null} 
         />
         
-        <div className="phase-column flex flex-col items-center justify-center p-2 w-full">
-          <div className="phase-title mb-2">Phase</div>
+        <CardDetailPanel card={detailCard} />
+        
+        <LifePointsDisplay 
+          lp={player.lp} 
+          isPlayer={true} 
+          damage={playerDamageFlash ? (prevPlayerLp - player.lp) : null} 
+        />
+      </div>
+
+      {/* Column 2: LP & Phase Column (vertical stack of LP and Phase selector) */}
+      <div className="lp-phase-column flex flex-col justify-center items-center py-2 self-stretch w-[70px] shrink-0 z-10">
+        <div className="phase-column flex flex-col items-center justify-center p-1 w-full">
+          <div className="phase-title mb-2 text-[10px] tracking-wider uppercase font-bold text-[#c6a34a]">Phase</div>
           <PhaseButtons
             currentPhase={rawPhase}
             isYourTurn={isYourTurn}
             onEndPhase={handleEndPhaseClick}
           />
-          <div className="action-buttons mt-4 flex flex-col gap-2 w-full">
+          <div className="action-buttons mt-3 flex flex-col gap-1.5 w-full items-center">
             <button
               onClick={handleEndPhaseClick}
               disabled={!isYourTurn}
-              className="action-btn action-btn-end-phase w-full"
+              className="phase-action-btn"
               title="Advance to next phase"
             >
-              NEXT PHASE
+              NEXT
             </button>
             <button
               onClick={() => setConfirmEndTurn(true)}
               disabled={!isYourTurn}
-              className="action-btn action-btn-end-turn w-full"
+              className="phase-action-btn"
               title="End your turn"
             >
-              END TURN
+              END
             </button>
           </div>
         </div>
-
-        <LifePointsDisplay 
-          name={player.name} 
-          lp={player.lp} 
-          isPlayer={true} 
-          damage={playerDamageFlash ? (prevPlayerLp - player.lp) : null} 
-        />
       </div>
 
       {/* Column 3: Main Field Area */}
@@ -533,131 +526,139 @@ export default function GameBoard({
         </div>
 
         <div className="flex gap-4 items-stretch justify-center relative mt-1 mb-1">
-          {/* Main Card Zones Grid */}
-          <div className="flex-1 flex flex-col gap-3">
-            {/* Opponent Field */}
-            <div className="field-area opponent-field-area field-egyptian">
-              {/* Opponent Graveyard Zone (Row 1 Left) */}
-              <div 
-                className="field-side-zone opponent-grave-zone" 
-                onClick={() => setShowGraveViewer('opponent')}
-              >
-                {opponent.grave && opponent.grave.length > 0 ? (
-                  <img
-                    src={cardImageMap[opponent.grave[opponent.grave.length - 1].id] || opponent.grave[opponent.grave.length - 1].imgUrl}
-                    alt="Opponent Graveyard"
-                    className="w-full h-full object-cover"
-                    onMouseEnter={() => handleCardHover(opponent.grave[opponent.grave.length - 1])}
-                  />
-                ) : (
-                  <span>GRAVE</span>
-                )}
-                {opponent.grave && opponent.grave.length > 0 && (
-                  <div className="field-zone-count-badge">{opponent.grave.length}</div>
-                )}
-              </div>
+          {/* Unified Duel Board Mat */}
+          <div className="flex-grow unified-field-mat field-egyptian relative">
+            {/* Side Zones (Deck / Graveyard / Extra) placed relative to this mat */}
+            
+            {/* Opponent Deck (Top Left) */}
+            <div className="field-side-zone opponent-deck-zone">
+              {opponent.deckCount > 0 ? (
+                <img
+                  src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
+                  alt="Opponent Deck"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>DECK</span>
+              )}
+              {opponent.deckCount > 0 && (
+                <div className="field-zone-count-badge">{opponent.deckCount}</div>
+              )}
+            </div>
 
-              {/* Opponent Deck Zone (Row 2 Left) */}
-              <div className="field-side-zone opponent-deck-zone">
-                {opponent.deckCount > 0 ? (
-                  <img
-                    src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
-                    alt="Opponent Deck"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>DECK</span>
-                )}
-                {opponent.deckCount > 0 && (
-                  <div className="field-zone-count-badge">{opponent.deckCount}</div>
-                )}
-              </div>
+            {/* Opponent Graveyard (Middle Left) */}
+            <div 
+              className="field-side-zone opponent-grave-zone" 
+              onClick={() => setShowGraveViewer('opponent')}
+            >
+              {opponent.grave && opponent.grave.length > 0 ? (
+                <img
+                  src={cardImageMap[opponent.grave[opponent.grave.length - 1].id] || opponent.grave[opponent.grave.length - 1].imgUrl}
+                  alt="Opponent Graveyard"
+                  className="w-full h-full object-cover"
+                  onMouseEnter={() => handleCardHover(opponent.grave[opponent.grave.length - 1])}
+                />
+              ) : (
+                <span>GRAVE</span>
+              )}
+              {opponent.grave && opponent.grave.length > 0 && (
+                <div className="field-zone-count-badge">{opponent.grave.length}</div>
+              )}
+            </div>
 
-              <Field
-                monsters={opponent.field?.monsters || []}
-                spells={opponent.field?.spells || []}
-                isOpponent={true}
-                attackTargets={attackTargets}
-                selectable={isTargetingMode}
-                onMonsterClick={(card, index) => {
-                  if (isTargetingMode) {
-                    if (targetingType === 'opponent_monster' || targetingType === 'any_monster') {
-                      handleTargetSelected(card)
-                    }
-                  } else if (canBattle && selectedMonster !== null && attackTargets.includes(index)) {
-                    onAttackTarget(index)
-                  }
-                }}
-                onSpellClick={(card, index) => {
-                  if (isTargetingMode && targetingType === 'any_monster') {
+            {/* Player Extra/Fusion Deck placeholder (Bottom Left) */}
+            <div className="field-side-zone player-fusion-zone">
+              <span>FUSION</span>
+            </div>
+
+            {/* Opponent Extra/Fusion Deck placeholder (Top Right) */}
+            <div className="field-side-zone opponent-fusion-zone">
+              <span>FUSION</span>
+            </div>
+
+            {/* Player Graveyard (Middle Right) */}
+            <div 
+              className="field-side-zone player-grave-zone" 
+              onClick={() => setShowGraveViewer('player')}
+            >
+              {player.grave && player.grave.length > 0 ? (
+                <img
+                  src={cardImageMap[player.grave[player.grave.length - 1].id] || player.grave[player.grave.length - 1].imgUrl}
+                  alt="Player Graveyard"
+                  className="w-full h-full object-cover"
+                  onMouseEnter={() => handleCardHover(player.grave[player.grave.length - 1])}
+                />
+              ) : (
+                <span>GRAVE</span>
+              )}
+              {player.grave && player.grave.length > 0 && (
+                <div className="field-zone-count-badge">{player.grave.length}</div>
+              )}
+            </div>
+
+            {/* Player Deck (Bottom Right) */}
+            <div className="field-side-zone player-deck-zone">
+              {player.deckCount > 0 ? (
+                <img
+                  src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
+                  alt="Player Deck"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span>DECK</span>
+              )}
+              {player.deckCount > 0 && (
+                <div className="field-zone-count-badge">{player.deckCount}</div>
+              )}
+            </div>
+
+            {/* Opponent Field Grid */}
+            <Field
+              monsters={opponent.field?.monsters || []}
+              spells={opponent.field?.spells || []}
+              isOpponent={true}
+              attackTargets={attackTargets}
+              selectable={isTargetingMode}
+              onMonsterClick={(card, index) => {
+                if (isTargetingMode) {
+                  if (targetingType === 'opponent_monster' || targetingType === 'any_monster') {
                     handleTargetSelected(card)
                   }
-                }}
-                onCardHover={handleCardHover}
-                duelAnimation={duelAnimation}
-              />
+                } else if (canBattle && selectedMonster !== null && attackTargets.includes(index)) {
+                  onAttackTarget(index)
+                }
+              }}
+              onSpellClick={(card, index) => {
+                if (isTargetingMode && targetingType === 'any_monster') {
+                  handleTargetSelected(card)
+                }
+              }}
+              onCardHover={handleCardHover}
+              duelAnimation={duelAnimation}
+            />
+
+            {/* Central Divider Mat Line with Millennium Eye watermark */}
+            <div className="field-center-divider">
+              <div className="field-center-line" />
+              <div className="field-center-eye">𓂀</div>
+              <div className="field-center-line" />
             </div>
 
-            {/* VS Divider */}
-            <div className="vs-divider">
-              <div className="vs-line"></div>
-              <div className="vs-text">VS</div>
-              <div className="vs-line"></div>
-            </div>
-
-            {/* Player Field */}
-            <div className="field-area player-field-area field-egyptian">
-              {/* Player Graveyard Zone (Row 3 Right) */}
-              <div 
-                className="field-side-zone player-grave-zone" 
-                onClick={() => setShowGraveViewer('player')}
-              >
-                {player.grave && player.grave.length > 0 ? (
-                  <img
-                    src={cardImageMap[player.grave[player.grave.length - 1].id] || player.grave[player.grave.length - 1].imgUrl}
-                    alt="Player Graveyard"
-                    className="w-full h-full object-cover"
-                    onMouseEnter={() => handleCardHover(player.grave[player.grave.length - 1])}
-                  />
-                ) : (
-                  <span>GRAVE</span>
-                )}
-                {player.grave && player.grave.length > 0 && (
-                  <div className="field-zone-count-badge">{player.grave.length}</div>
-                )}
-              </div>
-
-              {/* Player Deck Zone (Row 4 Right) */}
-              <div className="field-side-zone player-deck-zone">
-                {player.deckCount > 0 ? (
-                  <img
-                    src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
-                    alt="Player Deck"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>DECK</span>
-                )}
-                {player.deckCount > 0 && (
-                  <div className="field-zone-count-badge">{player.deckCount}</div>
-                )}
-              </div>
-
-              <Field
-                monsters={player.field?.monsters || []}
-                spells={player.field?.spells || []}
-                isOpponent={false}
-                selectedMonster={selectedMonster}
-                attackTargets={attackTargets}
-                selectable={canPlayCard || canBattle || isTargetingMode || !!tributeSelection}
-                onMonsterClick={handleMonsterClick}
-                onSpellClick={handleSpellClick}
-                onEmptySlotClick={() => {}}
-                onCardHover={handleCardHover}
-                duelAnimation={duelAnimation}
-                tributeSelectedIds={tributeSelection ? tributeSelection.selectedIds : []}
-              />
-            </div>
+            {/* Player Field Grid */}
+            <Field
+              monsters={player.field?.monsters || []}
+              spells={player.field?.spells || []}
+              isOpponent={false}
+              selectedMonster={selectedMonster}
+              attackTargets={attackTargets}
+              selectable={canPlayCard || canBattle || isTargetingMode || !!tributeSelection}
+              onMonsterClick={handleMonsterClick}
+              onSpellClick={handleSpellClick}
+              onEmptySlotClick={() => {}}
+              onCardHover={handleCardHover}
+              duelAnimation={duelAnimation}
+              tributeSelectedIds={tributeSelection ? tributeSelection.selectedIds : []}
+            />
           </div>
         </div>
 

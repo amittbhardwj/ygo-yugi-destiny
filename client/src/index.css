@@ -266,66 +266,41 @@
   flex-shrink: 0;
 }
 
-/* Card detail panel - dark marble with Egyptian border */
+/* Card detail panel - borderless layout direct on stone background */
 .card-detail-panel {
-  background: 
-    linear-gradient(135deg, rgba(20, 15, 10, 0.98) 0%, rgba(40, 30, 20, 0.98) 50%, rgba(20, 15, 10, 0.98) 100%),
-    repeating-linear-gradient(
-      45deg,
-      transparent 0px,
-      transparent 10px,
-      rgba(212, 175, 55, 0.02) 10px,
-      rgba(212, 175, 55, 0.02) 20px
-    );
-  border: 4px solid #D4AF37;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.6), inset 0 0 20px rgba(0,0,0,0.3);
-  position: relative;
-}
-
-/* Canopic jar icons along border sides */
-.card-detail-panel::before {
-  content: '𓇯 𓇯 𓇯';
-  position: absolute;
-  left: 50%;
-  top: -2px;
-  transform: translateX(-50%);
-  font-size: 0.6rem;
-  color: #D4AF37;
-  letter-spacing: 8px;
-  text-shadow: 0 0 4px rgba(212, 175, 55, 0.6);
-}
-
-.card-detail-panel::after {
-  content: '𓇯 𓇯 𓇯';
-  position: absolute;
-  left: 50%;
-  bottom: -2px;
-  transform: translateX(-50%) rotate(180deg);
-  font-size: 0.6rem;
-  color: #D4AF37;
-  letter-spacing: 8px;
-  text-shadow: 0 0 4px rgba(212, 175, 55, 0.6);
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
 }
 
 .detail-inner-border {
-  padding: 8px;
-  border: 2px solid rgba(212,175,55,0.4);
-  border-radius: 4px;
-  margin: 4px;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
 }
 
 .card-image-area {
   aspect-ratio: 2/3;
   background: #0a0612;
-  border: 3px solid #4a2c9a;
-  border-radius: 6px;
+  border: 4px ridge #c6a34a !important;
+  border-radius: 0 !important;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
 }
 
 .card-detail-image {
@@ -576,6 +551,16 @@
 
 .opponent-hand-area, .player-hand-area {
   padding: 4px 8px;
+  position: relative;
+  z-index: 10;
+}
+
+.opponent-hand-area {
+  margin-bottom: -22px;
+}
+
+.player-hand-area {
+  margin-top: -14px;
 }
 
 .opponent-hand-area .hand-label {
@@ -893,10 +878,21 @@
 
 /* Horizontal scroll for hand on small screens */
 .hand-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x mandatory;
+  display: flex;
+  gap: 0;
+}
+@media (max-width: 767px) {
+  .hand-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+}
+@media (min-width: 768px) {
+  .hand-scroll {
+    overflow: visible !important;
+  }
 }
 
 .hand-scroll > * {
@@ -907,12 +903,14 @@ html, body, #root { cursor: crosshair; }
 button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointer; }
 
 .game-board-root {
-  min-height: 100vh;
+  height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 52% 47%, rgba(237,214,130,.18), transparent 22%),
-    linear-gradient(135deg, #20351f 0%, #31543d 28%, #172919 52%, #45613d 100%) !important;
-  box-shadow: inset 0 0 140px rgba(0,0,0,.75);
+  background-color: #657850 !important;
+  background-image: 
+    radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.45) 100%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 20px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,0.05) 0 2px, transparent 2px 20px) !important;
+  box-shadow: inset 0 0 160px rgba(0,0,0,0.85);
 }
 
 .game-board-root::after {
@@ -1006,13 +1004,13 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   object-fit: cover;
 }
 
-.opponent-grave-zone { left: 12px; top: 18px; right: auto; cursor: pointer; }
+.opponent-grave-zone { left: 12px; bottom: 18px; top: auto; right: auto; cursor: pointer; }
 .opponent-grave-zone:hover {
   filter: brightness(1.25);
   box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
 }
 
-.opponent-deck-zone { left: 12px; bottom: 18px; top: auto; }
+.opponent-deck-zone { left: 12px; top: 18px; bottom: auto; }
 
 .player-grave-zone { right: 12px; top: 18px; left: auto; cursor: pointer; }
 .player-grave-zone:hover {
@@ -1166,12 +1164,12 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
 .poc-zone { width: 70px; height: 98px; }
 .field-egyptian { min-height: 226px; padding-top: 10px !important; padding-bottom: 10px !important; }
 .field-egyptian::before { font-size: 9rem !important; }
-.player-hand-area, .opponent-hand-area { min-height: 104px; }
-.player-hand-area { min-height: 128px; }
+.player-hand-area, .opponent-hand-area { min-height: 104px; overflow: visible !important; }
+.player-hand-area { min-height: 128px; overflow: visible !important; }
 .game-board-root { align-items: stretch; }
 .top-bar, .bottom-bar { min-height: 42px; padding-top: 4px !important; padding-bottom: 4px !important; }
-.opponent-hand-area { min-height: 82px; padding-top: 0; padding-bottom: 0; }
-.player-hand-area { min-height: 116px; padding-top: 2px; }
+.opponent-hand-area { min-height: 82px; padding-top: 0; padding-bottom: 0; overflow: visible !important; }
+.player-hand-area { min-height: 116px; padding-top: 2px; margin-bottom: 12px; overflow: visible !important; }
 .vs-divider { padding-top: 0; padding-bottom: 0; }
 
 /* Power of Chaos duel animations */
@@ -2067,12 +2065,14 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9) !important;
   height: 110px !important;
   padding: 6px 12px !important;
+  overflow: visible !important;
 }
 
 .player-hand-area, .opponent-hand-area {
   min-height: auto !important;
   background: none !important;
   border: none !important;
+  overflow: visible !important;
 }
 
 .hand-label {
@@ -2352,83 +2352,67 @@ button, input, select {
   flex-direction: row !important;
   justify-content: center !important;
   align-items: stretch;
-  gap: 16px !important;
+  gap: 12px !important;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-/* Column 2: LP & Phase Column */
-.lp-phase-column {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 0;
-}
-
-/* LP HUD Wing motif and Jar digits */
+/* LP HUD Wing motif and Jar digits in Left Panel */
 .lp-wing-frame-poc {
-  position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  width: 140px;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
 }
 
-.lp-name-poc {
-  font-family: 'Georgia', serif;
-  font-weight: 900;
-  font-size: 0.85rem;
-  color: #ffd700 !important;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  text-shadow: 1px 1px 2px #000, 0 0 4px rgba(255, 215, 0, 0.4);
-  margin-bottom: 4px;
+/* Left Panel Winged Orb (Smaller for Row Layout) */
+.lp-winged-orb {
+  position: relative;
+  width: 72px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.lp-wing-scarab-left, .lp-wing-scarab-right {
-  font-size: 1.6rem;
-  color: #c6a34a;
-  text-shadow: 0 0 6px rgba(198, 163, 74, 0.6);
+.lp-winged-orb .winged-disc-wings {
+  position: absolute;
+  width: 72px;
+  height: 6px;
+  background: linear-gradient(90deg, transparent 0%, #c6a34a 25%, #ffe875 50%, #c6a34a 75%, transparent 100%);
+  clip-path: polygon(0 50%, 15% 10%, 35% 0, 50% 30%, 65% 0, 85% 10%, 100% 50%, 85% 90%, 50% 60%, 15% 90%);
 }
 
-.lp-wing-scarab-right {
-  transform: scaleX(-1);
+.lp-winged-orb .winged-disc-orb {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 25%, #60a5fa 0%, #1e40af 60%, #0f172a 100%);
+  border: 1.2px solid #ffd700;
+  box-shadow: 0 0 4px rgba(96, 165, 250, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  z-index: 2;
 }
 
 /* Individual digit boxes - Canopic Urns */
 .lp-digit-urn {
   background: radial-gradient(circle at 50% 30%, #fefefe 0%, #e2e8f0 55%, #cbd5e1 100%);
-  border: 2px solid #c6a34a;
-  border-radius: 8px 8px 12px 12px;
-  width: 22px;
-  height: 32px;
+  border: 1.5px solid #c6a34a;
+  border-radius: 5px 5px 8px 8px;
+  width: 18px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Georgia', serif;
-  font-size: 1.25rem;
+  font-size: 0.95rem;
   font-weight: 900;
   color: #1e293b;
-  box-shadow: inset 0 1px 2px #fff, 0 2px 4px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 2px #fff, 0 1.5px 3px rgba(0, 0, 0, 0.6);
   text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.8);
-}
-
-/* LP progress bar */
-.lp-meter-poc {
-  width: 110px;
-  height: 6px;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid #c6a34a;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8);
-  margin-top: 6px;
-  overflow: hidden;
-}
-
-.lp-meter-poc > div {
-  height: 100%;
-  background: linear-gradient(90deg, #aa8620 0%, #ffd700 50%, #aa8620 100%);
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 6px rgba(255, 215, 0, 0.8);
 }
 
 /* Floating damage numbers */
@@ -2436,7 +2420,7 @@ button, input, select {
   position: absolute;
   top: -15px;
   font-family: 'Georgia', serif;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-weight: 900;
   color: #ef4444;
   text-shadow: 2px 2px 0px #000, 0 0 12px rgba(239, 68, 68, 0.8);
@@ -2450,6 +2434,98 @@ button, input, select {
   85% { transform: translateY(-20px) scale(1); opacity: 1; }
   100% { transform: translateY(-30px) scale(0.9); opacity: 0; }
 }
+
+/* Column 2: LP & Phase Column - Narrow vertical stone pillar */
+.lp-phase-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(180deg, #6a604f 0%, #363a42 45%, #1b1c24 100%) !important;
+  border: 4px ridge #aaa79d !important;
+  border-radius: 0 !important;
+  padding: 12px 2px;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.7);
+}
+
+/* Phase action buttons (NEXT / END) styled like stone blocks */
+.phase-action-btn {
+  width: 52px;
+  height: 24px;
+  background: linear-gradient(180deg, #35291a 0%, #1c150e 100%);
+  border: 2.5px ridge #c6a34a;
+  color: #ffd700;
+  font-family: 'Georgia', serif;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), inset 0 0 4px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.phase-action-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5c3c16 0%, #35291a 100%);
+  color: #fff8c8;
+  box-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
+  transform: scale(1.05);
+}
+
+.phase-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Unified field board mat */
+.unified-field-mat {
+  border-radius: 0 !important;
+  border: 6px ridge #b99a51 !important;
+  padding: 14px 80px 14px 80px !important;
+  background:
+    radial-gradient(ellipse at center, rgba(230,209,126,.11), transparent 42%),
+    linear-gradient(135deg, rgba(143,162,96,.88), rgba(75,106,72,.94) 45%, rgba(186,171,102,.78)),
+    repeating-linear-gradient(120deg, rgba(255,255,255,.07) 0 2px, transparent 2px 18px) !important;
+  box-shadow: inset 0 0 65px rgba(42,28,14,.65), 0 4px 14px rgba(0,0,0,.55);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Central Divider inside the mat */
+.field-center-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 2px 0;
+  width: 100%;
+}
+
+.field-center-line {
+  flex-grow: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(231, 207, 116, 0.45) 50%, transparent);
+}
+
+.field-center-eye {
+  font-size: 2rem;
+  color: rgba(231, 207, 116, 0.55);
+  text-shadow: 0 0 6px rgba(231, 207, 116, 0.3);
+  line-height: 1;
+}
+
+/* absolute positioning for side zones inside the unified mat container */
+.opponent-deck-zone { left: 12px; top: 14px; bottom: auto; right: auto; }
+.opponent-grave-zone { left: 12px; top: 124px; bottom: auto; right: auto; }
+.player-fusion-zone { left: 12px; bottom: 14px; top: auto; right: auto; font-family: 'Georgia', serif; font-size: 9px; font-weight: bold; color: rgba(255, 230, 136, 0.5); }
+
+.opponent-fusion-zone { right: 12px; top: 14px; bottom: auto; left: auto; font-family: 'Georgia', serif; font-size: 9px; font-weight: bold; color: rgba(255, 230, 136, 0.5); }
+.player-grave-zone { right: 12px; bottom: 124px; top: auto; left: auto; }
+.player-deck-zone { right: 12px; bottom: 14px; top: auto; left: auto; }
 
 /* Left Panel - Winged Disc */
 .winged-disc {

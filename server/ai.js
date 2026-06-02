@@ -4,7 +4,7 @@
  */
 
 import { summonMonster, setSpellTrap, executeAttack, directAttack, advancePhase, serialize, getActivatableTraps } from './gameState.js';
-import { resolveSpellEffect, processEventEffects } from './rules.js';
+import { resolveSpellEffect, processEventEffects, resolveFlipEffect } from './rules.js';
 import { rooms } from './rooms.js';
 import CARDS from './cards.js';
 
@@ -103,6 +103,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   const PLAYER_KEY = 'player1';
   const ai = gameState.players[AI_KEY];
   const player = gameState.players[PLAYER_KEY];
+  const summonedThisTurnIds = [];
 
   const THINK_DELAY = 500 + Math.random() * 300;
 
@@ -136,13 +137,20 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   // ---- MAIN PHASE 1 ----
   await delay(THINK_DELAY);
 
+  console.log(`[AI MAIN 1] Opponent monsters count: ${player.field.monsters.length}`);
   const oppMonsters = player.field.monsters.filter(Boolean);
+  console.log(`[AI MAIN 1] Opponent active monsters count: ${oppMonsters.length}`);
   const strongestOppAtk = oppMonsters.reduce((max, m) => {
     const mAtk = m.position === 'attack' ? (m.atk || 0) : 0;
     return mAtk > max ? mAtk : max;
   }, 0);
 
+  console.log(`[AI MAIN 1] strongestOppAtk: ${strongestOppAtk}`);
+  console.log(`[AI MAIN 1] AI hand size: ${ai.hand.length}`);
+  console.log(`[AI MAIN 1] AI hand:`, ai.hand.map(c => c.name));
+
   const availableTributes = ai.field.monsters.length;
+  console.log(`[AI MAIN 1] availableTributes: ${availableTributes}`);
   const summonable = findMonsterInHand(ai.hand).filter(c => {
     const base = getCardBase(c.cardId);
     if (!base) return false;
@@ -151,6 +159,9 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
     if (lvl >= 5) return availableTributes >= 1;
     return true;
   });
+
+  console.log(`[AI MAIN 1] summonable:`, summonable.map(c => c.name));
+  console.log(`[AI MAIN 1] hasNormalSummoned: ${ai.hasNormalSummoned}`);
 
   if (summonable.length > 0 && !ai.hasNormalSummoned) {
     const bestInHandAtk = sortMonstersByPriority(summonable, false)[0];
@@ -168,7 +179,9 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
     }
 
     const result = summonMonster(gameState, AI_KEY, best.cardId, position);
+    console.log(`[AI MAIN 1] summonMonster result success: ${result.success}, error: ${result.error || 'none'}`);
     if (result.success) {
+      summonedThisTurnIds.push(best.cardId);
       const action = { type: 'summon', cardId: best.cardId, position };
       const displayPos = position === 'defense' ? 'face-down Defense Position' : 'Attack Position';
       gameState.log.push(`Yugi summoned ${best.name} in ${displayPos}`);
@@ -279,7 +292,7 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
 
   // Smart flip check
   for (const monster of ai.field.monsters) {
-    if (monster.position === 'defense' && !monster.faceDown) {
+    if (monster.position === 'defense' && !summonedThisTurnIds.includes(monster.cardId)) {
       const atk = monster.atk || 0;
       const def = monster.def || 0;
       const oppMonsters = player.field.monsters.filter(Boolean);
@@ -298,8 +311,15 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
       
       if (shouldFlip) {
         monster.position = 'attack';
+        const wasFaceDown = monster.faceDown;
         monster.faceDown = false;
         gameState.log.push(`Yugi flipped ${monster.name} to Attack Position`);
+        
+        // Trigger flip effect synchronously
+        if (wasFaceDown && typeof monster.effect === 'string' && monster.effect.startsWith('flip_')) {
+          resolveFlipEffect(gameState, AI_KEY, monster);
+        }
+        
         if (reportAction(emitFn, { type: 'flip', cardId: monster.cardId })) return;
         await delay(THINK_DELAY);
       }
@@ -307,9 +327,11 @@ async function executeYugiTurn(gameState, io, roomCode, emitFn) {
   }
 
   // Get attack-ready monsters
+  console.log(`[AI BATTLE] Field monsters:`, ai.field.monsters.map(m => `${m.name} (pos: ${m.position}, cardId: ${m.cardId})`));
   const attackers = ai.field.monsters.filter(m =>
     m.position === 'attack' && !ai.attackedMonsters.includes(m.cardId)
   );
+  console.log(`[AI BATTLE] attackers:`, attackers.map(m => m.name));
 
   for (const attacker of attackers) {
     const oppMonsters = player.field.monsters.filter(Boolean);

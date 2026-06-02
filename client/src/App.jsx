@@ -255,6 +255,18 @@ export default function App() {
           yugiMsg = 'SPELL CARD ACTIVATED!';
         } else if (act.type === 'flip') {
           yugiMsg = 'FLIP SUMMON!';
+        } else if (act.type === 'attack' || act.type === 'direct-attack') {
+          dispatch({
+            type: 'SET_DUEL_ANIMATION',
+            payload: {
+              kind: 'attack',
+              attackerId: act.attackerId,
+              targetId: act.targetId,
+              damage: act.damage,
+              id: Date.now()
+            }
+          });
+          setTimeout(() => dispatch({ type: 'CLEAR_DUEL_ANIMATION' }), 1200);
         }
         if (yugiMsg) {
           dispatch({ type: 'SET_DUEL_ANIMATION', payload: { kind: 'command', message: yugiMsg, id: Date.now() } });

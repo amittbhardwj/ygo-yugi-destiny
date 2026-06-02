@@ -78,7 +78,7 @@ export default function Card({ card, faceDown = false, selected = false, selecta
   const getCardStyle = () => {
     const dims = SIZE_CONFIG[size] || SIZE_CONFIG.field
     const cardType = getCardType()
-    let base = `modern-card modern-card-${cardType} modern-card-${size} relative cursor-pointer transition-all duration-200 rounded-none overflow-hidden`
+    let base = `modern-card modern-card-${cardType} modern-card-${size} relative cursor-pointer transition-all duration-200 rounded-none overflow-visible`
     if (faceDown) return `${base} card-back-egyptian modern-card-back ${animationClass}`
     let border = ''
     if (selected) border = 'border-yellow-400 border-4'
@@ -94,44 +94,26 @@ export default function Card({ card, faceDown = false, selected = false, selecta
   const renderCardFace = () => {
     if (!card) return null
     const cardType = getCardType()
-    const style = FRAME_STYLES[cardType]
-    const showStats = cardType === 'normal' || cardType === 'effect'
-    const { level, attribute, atk, def } = card
-
-    const textSize = size === 'hand' ? 'text-[5px]' : size === 'large' ? 'text-[10px]' : 'text-[7px]'
-    const levelSize = size === 'hand' ? 'text-[8px]' : size === 'large' ? 'text-xs' : 'text-[10px]'
-    const statsSize = size === 'hand' ? 'text-[7px]' : size === 'large' ? 'text-sm' : 'text-[10px]'
-    const padding = size === 'hand' ? 'p-0.5' : size === 'large' ? 'p-2' : 'p-1'
+    const style = FRAME_STYLES[cardType] || FRAME_STYLES.normal
 
     return (
-      <div className={`modern-card-face w-full h-full rounded-none flex flex-col ${padding}`} style={{ background: style.bg, border: `1px solid ${style.border}` }}>
-        <div className="flex justify-between items-center mb-0.5">
-          {attribute && <div className="w-3 h-3 rounded-none border border-black/30" style={{ backgroundColor: ATTRIBUTE_COLORS[attribute.toUpperCase()] }} title={attribute} />}
-          {level > 0 && <div className="flex">{[...Array(Math.min(level, 12))].map((_, i) => <span key={i} className={`${levelSize} text-orange-400`}>★</span>)}</div>}
-        </div>
-
-        {/* Card image */}
-        <div className="relative flex-1 rounded-none overflow-hidden mb-0.5" style={{ minHeight: size === 'hand' ? '32px' : '48px' }}>
-          {imgSrc && (
-            <img
-              src={imgSrc}
-              alt={name}
-              onLoad={() => setImgLoaded(true)}
-              onError={handleImgError}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-            />
-          )}
-          {!imgLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
-              <span className={`${textSize} text-white font-bold text-center px-1 leading-tight`}>{name}</span>
-            </div>
-          )}
-        </div>
-
-        {showStats && (
-          <div className="flex justify-between mt-0.5">
-            {atk !== undefined && <span className={`${statsSize} font-bold text-red-400`}>ATK {atk}</span>}
-            {def !== undefined && <span className={`${statsSize} font-bold text-blue-400`}>DEF {def}</span>}
+      <div 
+        className="modern-card-face w-full h-full rounded-none overflow-hidden relative" 
+        style={{ background: style.bg, border: `1px solid ${style.border}` }}
+      >
+        {imgSrc && (
+          <img
+            src={imgSrc}
+            alt={name}
+            onLoad={() => setImgLoaded(true)}
+            onError={handleImgError}
+            className={`w-full h-full object-fill transition-opacity duration-200 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          />
+        )}
+        {!imgLoaded && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 p-1 text-center">
+            <span className="text-[10px] text-ygo-gold font-bold leading-tight uppercase mb-1">{name}</span>
+            <span className="text-[8px] text-gray-400 uppercase">{cardType}</span>
           </div>
         )}
       </div>

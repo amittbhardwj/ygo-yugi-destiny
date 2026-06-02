@@ -608,9 +608,9 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Must be in main1 phase
-      if (gs.phase !== 'main1') {
-        socket.emit('error', { message: 'Can only summon during Main Phase 1' });
+      // Must be in Main Phase 1 or 2
+      if (gs.phase !== 'main1' && gs.phase !== 'main2') {
+        socket.emit('error', { message: 'Can only summon during Main Phase' });
         return;
       }
 
@@ -925,6 +925,12 @@ io.on('connection', (socket) => {
       }
       if (!fieldTrap.faceDown) {
         socket.emit('error', { message: 'Trap is already face-up' });
+        return;
+      }
+
+      const eventDrivenEffects = ['destroy_1000atk_monster', 'destroy_attackers', 'negate_spell'];
+      if (eventDrivenEffects.includes(fieldTrap.effect) || fieldTrap.id === 't8' || fieldTrap.cardId?.startsWith('t8')) {
+        socket.emit('error', { message: `${fieldTrap.name} can only be activated in response to a specific action.` });
         return;
       }
 

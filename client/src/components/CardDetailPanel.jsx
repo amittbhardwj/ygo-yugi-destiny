@@ -52,7 +52,6 @@ export default function CardDetailPanel({ card }) {
   if (!card) {
     return (
       <div className="card-detail-panel flex flex-col justify-between p-2 h-full">
-        <WingedDisc />
         <div className="detail-inner-border flex-1 flex flex-col items-center justify-center">
           <div className="text-center p-4">
             <div className="text-3xl mb-3 opacity-60">𓂀</div>
@@ -60,7 +59,6 @@ export default function CardDetailPanel({ card }) {
             <div className="text-gray-400 text-xs mt-2">Hover over a card to see details</div>
           </div>
         </div>
-        <WingedDisc />
       </div>
     )
   }
@@ -68,7 +66,6 @@ export default function CardDetailPanel({ card }) {
   if (card.hidden) {
     return (
       <div className="card-detail-panel flex flex-col justify-between p-2 h-full">
-        <WingedDisc />
         <div className="detail-inner-border flex flex-col gap-3 flex-grow">
           <div className="card-image-area border border-[#888]">
             <div className="w-full h-full bg-[#5c3317] flex items-center justify-center overflow-hidden">
@@ -80,14 +77,13 @@ export default function CardDetailPanel({ card }) {
             </div>
           </div>
           <div className="card-desc-box">
-            <div className="card-desc-name">Face-down Card</div>
-            <div className="card-desc-species">[Opponent's Card]</div>
+            <div className="card-desc-name">FACE-DOWN CARD</div>
+            <div className="card-desc-species">[OPPONENT'S CARD]</div>
             <div className="card-desc-text">
               The details of this card are hidden.
             </div>
           </div>
         </div>
-        <WingedDisc />
       </div>
     )
   }
@@ -101,14 +97,14 @@ export default function CardDetailPanel({ card }) {
   const typeColor = isSpell ? '#22c55e' : isTrap ? '#a855f7' : '#c6a34a'
 
   const getSpeciesLabel = () => {
-    if (isSpell) return '[Spell Card]'
-    if (isTrap) return '[Trap Card]'
-    return `[${card.species || 'Monster'}]`
+    if (isSpell) return '[SPELL CARD]'
+    if (isTrap) return '[TRAP CARD]'
+    const speciesText = card.species || 'Monster'
+    return `[${speciesText.toUpperCase()}]`
   }
 
   return (
     <div className="card-detail-panel flex flex-col justify-between p-2 h-full">
-      <WingedDisc />
       <div className="detail-inner-border flex flex-col gap-3 flex-grow">
         {/* Card image */}
         <div className="card-image-area" style={{ borderColor: typeColor }}>
@@ -141,7 +137,6 @@ export default function CardDetailPanel({ card }) {
           )}
         </div>
       </div>
-      <WingedDisc />
     </div>
   )
 }

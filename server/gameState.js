@@ -5,6 +5,7 @@
 
 import CARDS from './cards.js';
 import { getCardImageUrl } from './cardImages.js';
+import { resolveFlipEffect } from './rules.js';
 
 const STARTING_LP = 8000;
 const EXODIA_IDS = ['m100', 'm101', 'm102', 'm103', 'm104'];
@@ -255,9 +256,8 @@ function executeAttack(state, playerKey, attackerId, targetId) {
   if (target.faceDown) {
     target.faceDown = false;
     target.position = 'defense';
-    // Import dynamically to avoid circular dependencies if any arise later, or just use the imported one
     if (typeof target.effect === 'string' && target.effect.startsWith('flip_')) {
-        import('./rules.js').then(r => r.resolveFlipEffect(state, opponentKey, target));
+      resolveFlipEffect(state, opponentKey, target);
     }
   }
 
