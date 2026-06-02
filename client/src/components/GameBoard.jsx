@@ -33,18 +33,27 @@ function normalizePhase(phase) {
 function LifePointsDisplay({ name, lp, isPlayer, damage = null }) {
   const lpValue = lp || 0
   const lpPercent = Math.max(0, Math.min(100, (lpValue / 8000) * 100))
+  const lpString = String(lpValue).padStart(4, '0')
+  const digits = lpString.split('')
 
   return (
-    <div className={`lp-wing-frame duel-lp-hud ${isPlayer ? 'lp-player' : 'lp-opponent'} ${damage ? 'damage-flash lp-damage-flash' : ''}`}>
-      <div className="lp-content">
-        <span className="lp-name">{name}</span>
-        <span className="lp-value">{lpValue.toLocaleString()}</span>
-        <span className="lp-label">LP</span>
-        <span className="lp-meter" aria-hidden="true">
-          <span style={{ width: `${lpPercent}%` }} />
-        </span>
+    <div className={`lp-wing-frame-poc flex flex-col items-center justify-center ${isPlayer ? 'lp-player-poc' : 'lp-opponent-poc'} ${damage ? 'damage-flash' : ''}`}>
+      <span className="lp-name-poc">{name}</span>
+      <div className="flex items-center gap-1 relative">
+        <span className="lp-wing-scarab-left">𓆣</span>
+        <div className="flex gap-1 bg-black/40 p-1 border border-egyptian-gold/30 rounded-lg shadow-inner">
+          {digits.map((digit, i) => (
+            <div key={i} className="lp-digit-urn">
+              {digit}
+            </div>
+          ))}
+        </div>
+        <span className="lp-wing-scarab-right">𓆣</span>
       </div>
-      {damage ? <span className="floating-damage">-{damage}</span> : null}
+      <div className="lp-meter-poc" aria-hidden="true">
+        <div style={{ width: `${lpPercent}%` }} />
+      </div>
+      {damage ? <span className="floating-damage-poc">-{damage}</span> : null}
     </div>
   )
 }
@@ -431,8 +440,52 @@ export default function GameBoard({
         <CardDetailPanel card={detailCard} />
       </div>
 
-      {/* Main Field Area */}
-      <div className="main-field">
+      {/* Column 2: LP & Phase Column (vertical stack of LP and Phase selector) */}
+      <div className="lp-phase-column flex flex-col justify-between items-center py-2 self-stretch w-[140px] shrink-0 z-10">
+        <LifePointsDisplay 
+          name={opponent.name} 
+          lp={opponent.lp} 
+          isPlayer={false} 
+          damage={opponentDamageFlash ? (prevOpponentLp - opponent.lp) : null} 
+        />
+        
+        <div className="phase-column flex flex-col items-center justify-center p-2 w-full">
+          <div className="phase-title mb-2">Phase</div>
+          <PhaseButtons
+            currentPhase={rawPhase}
+            isYourTurn={isYourTurn}
+            onEndPhase={handleEndPhaseClick}
+          />
+          <div className="action-buttons mt-4 flex flex-col gap-2 w-full">
+            <button
+              onClick={handleEndPhaseClick}
+              disabled={!isYourTurn}
+              className="action-btn action-btn-end-phase w-full"
+              title="Advance to next phase"
+            >
+              NEXT PHASE
+            </button>
+            <button
+              onClick={() => setConfirmEndTurn(true)}
+              disabled={!isYourTurn}
+              className="action-btn action-btn-end-turn w-full"
+              title="End your turn"
+            >
+              END TURN
+            </button>
+          </div>
+        </div>
+
+        <LifePointsDisplay 
+          name={player.name} 
+          lp={player.lp} 
+          isPlayer={true} 
+          damage={playerDamageFlash ? (prevPlayerLp - player.lp) : null} 
+        />
+      </div>
+
+      {/* Column 3: Main Field Area */}
+      <div className="main-field flex flex-col justify-between flex-1">
         <div className="field-watermark">𓂀</div>
 
         {isTargetingMode && (
@@ -473,52 +526,18 @@ export default function GameBoard({
           </div>
         )}
 
-        {/* Top - Opponent Info */}
-        <div 
-          className={`top-bar ${selectedMonster !== null && attackTargets.length === 0 ? 'cursor-pointer hover:bg-red-900/40 transition-colors rounded' : ''}`}
-          onClick={() => {
-            if (canBattle && selectedMonster !== null && attackTargets.length === 0) {
-              onAttackTarget('direct')
-            }
-          }}
-        >
-          <LifePointsDisplay name={opponent.name} lp={opponent.lp} isPlayer={false} damage={opponentDamageFlash ? (prevOpponentLp - opponent.lp) : null} />
-          <div className="duel-turn-chip">
-            <span>{turnLabel}</span>
-            <strong>{PHASE_MAP[normalizedPhase] || normalizedPhase}</strong>
-          </div>
-          <DuelistResource label="Deck" count={opponent.deckCount} tone="opponent" />
-          <DuelistResource label="Grave" count={opponent.grave?.length} tone="opponent" onClick={() => setShowGraveViewer('opponent')} />
-        </div>
-
         {/* Opponent Hand */}
         <div className="opponent-hand-area">
           <div className="hand-label">OPPONENT'S HAND</div>
           <Hand cards={opponent.hand || []} isOpponent={true} onHover={handleCardHover} />
         </div>
 
-        <div className="flex gap-4 items-stretch justify-center relative mt-3 mb-3">
+        <div className="flex gap-4 items-stretch justify-center relative mt-1 mb-1">
           {/* Main Card Zones Grid */}
           <div className="flex-1 flex flex-col gap-3">
             {/* Opponent Field */}
             <div className="field-area opponent-field-area field-egyptian">
-              {/* Deck Zone */}
-              <div className="field-side-zone opponent-deck-zone">
-                {opponent.deckCount > 0 ? (
-                  <img
-                    src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
-                    alt="Opponent Deck"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span>DECK</span>
-                )}
-                {opponent.deckCount > 0 && (
-                  <div className="field-zone-count-badge">{opponent.deckCount}</div>
-                )}
-              </div>
-
-              {/* Graveyard Zone */}
+              {/* Opponent Graveyard Zone (Row 1 Left) */}
               <div 
                 className="field-side-zone opponent-grave-zone" 
                 onClick={() => setShowGraveViewer('opponent')}
@@ -535,6 +554,22 @@ export default function GameBoard({
                 )}
                 {opponent.grave && opponent.grave.length > 0 && (
                   <div className="field-zone-count-badge">{opponent.grave.length}</div>
+                )}
+              </div>
+
+              {/* Opponent Deck Zone (Row 2 Left) */}
+              <div className="field-side-zone opponent-deck-zone">
+                {opponent.deckCount > 0 ? (
+                  <img
+                    src="https://images.ygoprodeck.com/images/cards/back_high.jpg"
+                    alt="Opponent Deck"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>DECK</span>
+                )}
+                {opponent.deckCount > 0 && (
+                  <div className="field-zone-count-badge">{opponent.deckCount}</div>
                 )}
               </div>
 
@@ -572,7 +607,7 @@ export default function GameBoard({
 
             {/* Player Field */}
             <div className="field-area player-field-area field-egyptian">
-              {/* Graveyard Zone */}
+              {/* Player Graveyard Zone (Row 3 Right) */}
               <div 
                 className="field-side-zone player-grave-zone" 
                 onClick={() => setShowGraveViewer('player')}
@@ -592,7 +627,7 @@ export default function GameBoard({
                 )}
               </div>
 
-              {/* Deck Zone */}
+              {/* Player Deck Zone (Row 4 Right) */}
               <div className="field-side-zone player-deck-zone">
                 {player.deckCount > 0 ? (
                   <img
@@ -624,41 +659,6 @@ export default function GameBoard({
               />
             </div>
           </div>
-
-          {/* Phase Column - integrated directly onto field side */}
-          <div className="phase-column flex flex-col items-center justify-between p-4 w-[140px] self-stretch">
-            <div className="phase-title mb-2">Phase</div>
-            <PhaseButtons
-              currentPhase={rawPhase}
-              isYourTurn={isYourTurn}
-              onEndPhase={handleEndPhaseClick}
-            />
-            <div className="action-buttons mt-4 flex flex-col gap-2 w-full">
-              <button
-                onClick={handleEndPhaseClick}
-                disabled={!isYourTurn}
-                className="action-btn action-btn-end-phase w-full"
-                title="Advance to next phase"
-              >
-                NEXT PHASE
-              </button>
-              <button
-                onClick={() => setConfirmEndTurn(true)}
-                disabled={!isYourTurn}
-                className="action-btn action-btn-end-turn w-full"
-                title="End your turn"
-              >
-                END TURN
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom - Player Info */}
-        <div className="bottom-bar">
-          <LifePointsDisplay name={player.name} lp={player.lp} isPlayer={true} damage={playerDamageFlash ? (prevPlayerLp - player.lp) : null} />
-          <DuelistResource label="Deck" count={player.deckCount} tone="player" />
-          <DuelistResource label="Grave" count={player.grave?.length} tone="player" onClick={() => setShowGraveViewer('player')} />
         </div>
 
         {/* Player Hand - kept at the very bottom like Power of Chaos */}

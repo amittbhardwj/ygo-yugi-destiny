@@ -1006,20 +1006,21 @@ button, .card-selectable, .poc-zone-selectable, .command-option { cursor: pointe
   object-fit: cover;
 }
 
-.opponent-deck-zone { left: 12px; top: 18px; }
-.opponent-grave-zone { right: 12px; top: 18px; cursor: pointer; }
+.opponent-grave-zone { left: 12px; top: 18px; right: auto; cursor: pointer; }
 .opponent-grave-zone:hover {
   filter: brightness(1.25);
   box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
 }
 
-.player-grave-zone { left: 12px; bottom: 18px; cursor: pointer; }
+.opponent-deck-zone { left: 12px; bottom: 18px; top: auto; }
+
+.player-grave-zone { right: 12px; top: 18px; left: auto; cursor: pointer; }
 .player-grave-zone:hover {
   filter: brightness(1.25);
   box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
 }
 
-.player-deck-zone { right: 12px; bottom: 18px; }
+.player-deck-zone { right: 12px; bottom: 18px; top: auto; }
 
 .field-zone-count-badge {
   position: absolute;
@@ -2339,4 +2340,202 @@ button, input, select {
 
 .bg-amber-950\/95 {
   background-color: rgba(69, 26, 3, 0.95) !important;
+}
+
+/* ========================================================
+   POWER OF CHAOS 100% RETRO FIDELITY LAYOUT OVERRIDES
+   ======================================================== */
+
+/* Left-to-right columns container */
+.game-board-root {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: stretch;
+  gap: 16px !important;
+}
+
+/* Column 2: LP & Phase Column */
+.lp-phase-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+}
+
+/* LP HUD Wing motif and Jar digits */
+.lp-wing-frame-poc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 140px;
+}
+
+.lp-name-poc {
+  font-family: 'Georgia', serif;
+  font-weight: 900;
+  font-size: 0.85rem;
+  color: #ffd700 !important;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 1px 1px 2px #000, 0 0 4px rgba(255, 215, 0, 0.4);
+  margin-bottom: 4px;
+}
+
+.lp-wing-scarab-left, .lp-wing-scarab-right {
+  font-size: 1.6rem;
+  color: #c6a34a;
+  text-shadow: 0 0 6px rgba(198, 163, 74, 0.6);
+}
+
+.lp-wing-scarab-right {
+  transform: scaleX(-1);
+}
+
+/* Individual digit boxes - Canopic Urns */
+.lp-digit-urn {
+  background: radial-gradient(circle at 50% 30%, #fefefe 0%, #e2e8f0 55%, #cbd5e1 100%);
+  border: 2px solid #c6a34a;
+  border-radius: 8px 8px 12px 12px;
+  width: 22px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Georgia', serif;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #1e293b;
+  box-shadow: inset 0 1px 2px #fff, 0 2px 4px rgba(0, 0, 0, 0.6);
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.8);
+}
+
+/* LP progress bar */
+.lp-meter-poc {
+  width: 110px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid #c6a34a;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8);
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.lp-meter-poc > div {
+  height: 100%;
+  background: linear-gradient(90deg, #aa8620 0%, #ffd700 50%, #aa8620 100%);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 6px rgba(255, 215, 0, 0.8);
+}
+
+/* Floating damage numbers */
+.floating-damage-poc {
+  position: absolute;
+  top: -15px;
+  font-family: 'Georgia', serif;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #ef4444;
+  text-shadow: 2px 2px 0px #000, 0 0 12px rgba(239, 68, 68, 0.8);
+  animation: floatDamage 1.5s ease-out forwards;
+  z-index: 50;
+}
+
+@keyframes floatDamage {
+  0% { transform: translateY(0) scale(0.8); opacity: 0; }
+  15% { transform: translateY(-10px) scale(1.2); opacity: 1; }
+  85% { transform: translateY(-20px) scale(1); opacity: 1; }
+  100% { transform: translateY(-30px) scale(0.9); opacity: 0; }
+}
+
+/* Left Panel - Winged Disc */
+.winged-disc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  height: 24px;
+  margin: 6px 0;
+}
+
+.winged-disc-wings {
+  position: absolute;
+  width: 180px;
+  height: 10px;
+  background: linear-gradient(90deg, transparent 0%, #c6a34a 25%, #ffe875 50%, #c6a34a 75%, transparent 100%);
+  clip-path: polygon(0 50%, 15% 10%, 35% 0, 50% 30%, 65% 0, 85% 10%, 100% 50%, 85% 90%, 50% 60%, 15% 90%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.winged-disc-orb {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 25%, #60a5fa 0%, #1e40af 60%, #0f172a 100%);
+  border: 1.5px solid #ffd700;
+  box-shadow: 0 0 6px rgba(96, 165, 250, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  z-index: 2;
+}
+
+/* Card Detail Description Box Frame */
+.card-desc-box {
+  background: 
+    linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)),
+    radial-gradient(circle at center, rgba(198, 163, 74, 0.1), transparent 70%),
+    linear-gradient(135deg, #181510 0%, #0c0a07 100%) !important;
+  border: 3px ridge #c6a34a !important;
+  padding: 10px !important;
+  font-family: 'Georgia', serif !important;
+  color: #fff !important;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 160px;
+}
+
+.card-desc-name {
+  color: #ffd700 !important;
+  font-size: 0.95rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  text-shadow: 1px 1px 2px #000;
+}
+
+.card-desc-species {
+  color: #22c55e !important;
+  font-size: 0.75rem;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.card-desc-text {
+  color: #e2e8f0 !important;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.card-desc-stats {
+  color: #ffd700 !important;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-align: right;
+  margin-top: 4px;
+  border-top: 1px solid rgba(198, 163, 74, 0.3);
+  padding-top: 4px;
+  letter-spacing: 1px;
+}
+
+/* Align Phase button column in Column 2 */
+.lp-phase-column .phase-column {
+  margin: 12px 0;
+  width: 100%;
 }
